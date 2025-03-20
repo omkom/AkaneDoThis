@@ -54,7 +54,7 @@ export default function Header() {
               className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-2 ${activeSection === 'home' ? 'text-neon-pink' : ''}`}
             >
               <span className="relative">
-                Home
+                Accueil
                 <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-pink transition-all duration-300 ${activeSection === 'home' ? 'w-full' : 'group-hover:w-full'}`}></span>
               </span>
               {activeSection === 'home' && (
@@ -66,7 +66,7 @@ export default function Header() {
               className={`text-white hover:text-electric-blue transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'story' ? 'text-electric-blue' : ''}`}
             >
               <span className="relative">
-                Story
+                Histoire
                 <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-electric-blue transition-all duration-300 ${activeSection === 'story' ? 'w-full' : 'group-hover:w-full'}`}></span>
               </span>
               {activeSection === 'story' && (
@@ -78,7 +78,7 @@ export default function Header() {
               className={`text-white hover:text-vivid-lime transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'schedule' ? 'text-vivid-lime' : ''}`}
             >
               <span className="relative">
-                Schedule
+                Programme
                 <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-vivid-lime transition-all duration-300 ${activeSection === 'schedule' ? 'w-full' : 'group-hover:w-full'}`}></span>
               </span>
               {activeSection === 'schedule' && (
@@ -90,7 +90,7 @@ export default function Header() {
               className={`text-white hover:text-bright-purple transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'videos' ? 'text-bright-purple' : ''}`}
             >
               <span className="relative">
-                Videos
+                Vidéos
                 <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-bright-purple transition-all duration-300 ${activeSection === 'videos' ? 'w-full' : 'group-hover:w-full'}`}></span>
               </span>
               {activeSection === 'videos' && (
@@ -102,7 +102,7 @@ export default function Header() {
               className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'community' ? 'text-neon-pink' : ''}`}
             >
               <span className="relative">
-                Community
+                Communauté
                 <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-pink transition-all duration-300 ${activeSection === 'community' ? 'w-full' : 'group-hover:w-full'}`}></span>
               </span>
               {activeSection === 'community' && (
@@ -128,19 +128,17 @@ export default function Header() {
               className="ml-4 px-4 py-2 bg-gradient-to-r from-neon-pink to-bright-purple text-white font-cyber rounded-md relative group overflow-hidden"
             >
               <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-electric-blue to-vivid-lime opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-              <span className="relative z-10">Connect</span>
+              <span className="relative z-10">Me Contacter</span>
             </a>
           </nav>
           
           {/* Social Icons - Desktop */}
           <div className="hidden md:flex items-center space-x-4">
-            <a href="#" className="text-white hover:text-neon-pink transition">
+            <a href="https://www.twitch.tv/akanedothis" className="text-white hover:text-neon-pink transition">
               <FaTwitch className="w-5 h-5" />
             </a>
-            <a href="#" className="text-white hover:text-electric-blue transition">
-              <FaYoutube className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-white hover:text-bright-purple transition">
+            
+            <a href="https://discord.gg/H67aXsYNa7" className="text-white hover:text-bright-purple transition">
               <FaDiscord className="w-5 h-5" />
             </a>
           </div>
@@ -171,7 +169,7 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <span className="relative">
-                    Home
+                    Accueil
                     <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-pink transition-all duration-300 ${activeSection === 'home' ? 'w-full' : 'group-hover:w-full'}`}></span>
                   </span>
                 </a>
@@ -181,7 +179,7 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <span className="relative">
-                    Story
+                    Histoire
                     <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-electric-blue transition-all duration-300 ${activeSection === 'story' ? 'w-full' : 'group-hover:w-full'}`}></span>
                   </span>
                 </a>
@@ -191,7 +189,7 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <span className="relative">
-                    Schedule
+                    Programme
                     <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-vivid-lime transition-all duration-300 ${activeSection === 'schedule' ? 'w-full' : 'group-hover:w-full'}`}></span>
                   </span>
                 </a>
@@ -201,7 +199,7 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <span className="relative">
-                    Videos
+                    Vidéos
                     <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-bright-purple transition-all duration-300 ${activeSection === 'videos' ? 'w-full' : 'group-hover:w-full'}`}></span>
                   </span>
                 </a>
@@ -211,7 +209,7 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <span className="relative">
-                    Community
+                    Communauté
                     <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-pink transition-all duration-300 ${activeSection === 'community' ? 'w-full' : 'group-hover:w-full'}`}></span>
                   </span>
                 </a>
@@ -232,23 +230,23 @@ export default function Header() {
                   className="mt-2 px-4 py-2 bg-gradient-to-r from-neon-pink to-bright-purple text-white font-cyber rounded-md text-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Connect
+                  Me Contacter
                 </a>
                 
                 <div className="flex space-x-4 pt-4 border-t border-white/20">
-                  <a href="#" className="text-white hover:text-neon-pink transition">
+                  <a href="https://www.twitch.tv/akanedothis" className="text-white hover:text-neon-pink transition">
                     <FaTwitch className="w-5 h-5" />
                   </a>
-                  <a href="#" className="text-white hover:text-electric-blue transition">
+                  <a href="https://www.youtube.com/channel/UC3V_KcrCA284LW8efv1L3aw" className="text-white hover:text-electric-blue transition">
                     <FaYoutube className="w-5 h-5" />
                   </a>
-                  <a href="#" className="text-white hover:text-bright-purple transition">
+                  <a href="https://discord.gg/H67aXsYNa7" className="text-white hover:text-bright-purple transition">
                     <FaDiscord className="w-5 h-5" />
                   </a>
-                  <a href="#" className="text-white hover:text-vivid-lime transition">
+                  <a href="https://www.tiktok.com/@akanedothis" className="text-white hover:text-vivid-lime transition">
                     <FaTiktok className="w-5 h-5" />
                   </a>
-                  <a href="#" className="text-white hover:text-neon-pink transition">
+                  <a href="https://www.instagram.com/_akanedothis/" className="text-white hover:text-neon-pink transition">
                     <FaInstagram className="w-5 h-5" />
                   </a>
                 </div>

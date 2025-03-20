@@ -2,7 +2,7 @@ export default function Contact() {
   return (
     <section id="contact" className="py-20">
       <div className="container mx-auto px-4">
-        <h2 className="neon-text blue text-center text-4xl mb-12 font-cyber">Get In Touch</h2>
+        <h2 className="neon-text blue text-center text-4xl mb-12 font-cyber">Contactez-Moi</h2>
         
         <div className="max-w-4xl mx-auto">
           <div className="card-3d-container">
@@ -10,32 +10,32 @@ export default function Contact() {
               <form className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="name" className="block mb-2 font-cyber text-electric-blue">Your Name</label>
+                    <label htmlFor="name" className="block mb-2 font-cyber text-electric-blue">Votre Nom</label>
                     <input 
                       type="text" 
                       id="name" 
                       className="w-full p-3 bg-black/70 border-2 border-electric-blue focus:border-neon-pink outline-none transition font-body"
-                      placeholder="Enter your name"
+                      placeholder="Entrez votre nom"
                     />
                   </div>
                   <div>
-                    <label htmlFor="email" className="block mb-2 font-cyber text-electric-blue">Your Email</label>
+                    <label htmlFor="email" className="block mb-2 font-cyber text-electric-blue">Votre Email</label>
                     <input 
                       type="email" 
                       id="email" 
                       className="w-full p-3 bg-black/70 border-2 border-electric-blue focus:border-neon-pink outline-none transition font-body"
-                      placeholder="Enter your email"
+                      placeholder="Entrez votre email"
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <label htmlFor="subject" className="block mb-2 font-cyber text-electric-blue">Subject</label>
+                  <label htmlFor="subject" className="block mb-2 font-cyber text-electric-blue">Sujet</label>
                   <input 
                     type="text" 
                     id="subject" 
                     className="w-full p-3 bg-black/70 border-2 border-electric-blue focus:border-neon-pink outline-none transition font-body"
-                    placeholder="What's this about?"
+                    placeholder="De quoi s'agit-il ?"
                   />
                 </div>
                 
@@ -45,7 +45,7 @@ export default function Contact() {
                     id="message" 
                     rows={5}
                     className="w-full p-3 bg-black/70 border-2 border-electric-blue focus:border-neon-pink outline-none transition font-body"
-                    placeholder="Your message here..."
+                    placeholder="Votre message ici..."
                   ></textarea>
                 </div>
                 
@@ -54,7 +54,7 @@ export default function Contact() {
                     type="submit" 
                     className="px-8 py-3 bg-electric-blue text-black hover:bg-neon-pink transition duration-300 font-cyber"
                   >
-                    Send Message
+                    Envoyer le Message
                   </button>
                 </div>
               </form>
@@ -78,7 +78,7 @@ export default function Contact() {
             
             <div className="card-3d-container">
               <div className="neo-card neo-card-lime card-3d p-6">
-                <h3 className="neon-text lime text-xl mb-4 font-cyber">Business</h3>
+                <h3 className="neon-text lime text-xl mb-4 font-cyber">Professionnel</h3>
                 <p className="font-body">robert@akane.productions</p>
               </div>
             </div>
