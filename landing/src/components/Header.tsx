@@ -237,7 +237,7 @@ export default function Header() {
                   <a href="https://www.twitch.tv/akanedothis" className="text-white hover:text-neon-pink transition">
                     <FaTwitch className="w-5 h-5" />
                   </a>
-                  <a href="https://www.youtube.com/channel/UC3V_KcrCA284LW8efv1L3aw" className="text-white hover:text-electric-blue transition">
+                  <a href="https://www.youtube.com/@Akane.DoThis" className="text-white hover:text-electric-blue transition">
                     <FaYoutube className="w-5 h-5" />
                   </a>
                   <a href="https://discord.gg/H67aXsYNa7" className="text-white hover:text-bright-purple transition">
