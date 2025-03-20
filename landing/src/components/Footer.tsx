@@ -68,7 +68,7 @@ export default function Footer() {
         
         <div className="text-center text-gray-500 font-body">
           <p>&copy; {new Date().getFullYear()} AkaneDoThis. All rights reserved.</p>
-          <p className="mt-2 text-sm">Designed with 💜 in the Cyberpunk universe.</p>
+          <p className="mt-2 text-sm">Designed with 💜 in the Universe by @cubilizer</p>
         </div>
       </div>
     </footer>

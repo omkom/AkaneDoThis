@@ -1,0 +1,33 @@
+# Landing page docker-compose file
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "4173:5173"
+    environment:
+      - NODE_ENV=development
+
+  build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run build
+    environment:
+      - NODE_ENV=production
+
+  serve:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npx serve -s dist
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production

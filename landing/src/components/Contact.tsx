@@ -65,7 +65,7 @@ export default function Contact() {
             <div className="card-3d-container">
               <div className="neo-card neo-card-pink card-3d p-6">
                 <h3 className="neon-text pink text-xl mb-4 font-cyber">Email</h3>
-                <p className="font-body">contact@akanedothis.com</p>
+                <p className="font-body">contact@akane.productions</p>
               </div>
             </div>
             
@@ -79,7 +79,7 @@ export default function Contact() {
             <div className="card-3d-container">
               <div className="neo-card neo-card-lime card-3d p-6">
                 <h3 className="neon-text lime text-xl mb-4 font-cyber">Business Inquiries</h3>
-                <p className="font-body">business@akanedothis.com</p>
+                <p className="font-body">robert@akane.productions</p>
               </div>
             </div>
           </div>

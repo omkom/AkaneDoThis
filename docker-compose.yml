@@ -1,0 +1,63 @@
+# Main docker-compose file that orchestrates all services
+
+services:
+  # n8n service
+  n8n:
+    image: n8nio/n8n:latest
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=n8n
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - app-network
+
+  # Nginx service to route traffic
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro  # Mount SSL certificates
+    depends_on:
+      - n8n
+      - landing
+    #  - wordpress
+    networks:
+      - app-network
+
+  # Landing page - use the serve service by default for production
+  landing:
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
+    command: npx serve -s dist
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - app-network
+
+  # WordPress service (using external compose)
+  #wordpress:
+  #  extends:
+  #    file: ./wp_start/docker-compose.yml
+  #    service: wordpress
+  #  networks:
+  #    - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  n8n_data:
