@@ -23,7 +23,7 @@ log "Starting Akane environment update and restart process"
 
 # Stop any running containers
 log "Stopping any running containers"
-docker-compose down || log "Warning: Issues stopping containers, continuing anyway"
+docker compose down || log "Warning: Issues stopping containers, continuing anyway"
 
 # Pull latest changes from git
 log "Pulling latest changes from git"
@@ -38,7 +38,7 @@ cd landing || {
     log "ERROR: Could not change to landing directory"
     exit 1
 }
-docker-compose run --rm build || {
+docker compose run --rm build || {
     log "ERROR: Landing page build failed"
     exit 1
 }
@@ -80,7 +80,7 @@ else
 fi
 
 # # Check WordPress
-# if docker-compose ps | grep -q "wordpress.*Up"; then
+# if docker compose ps | grep -q "wordpress.*Up"; then
 #     log "✅ WordPress is running"
 # else
 #     log "❌ WordPress failed to start"
