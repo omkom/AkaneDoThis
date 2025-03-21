@@ -14,7 +14,7 @@ export default function Schedule() {
     // Set next stream date (example: next Monday at 8PM)
     const getNextStreamDate = () => {
       const now = new Date();
-      let nextStream = new Date();
+      const nextStream = new Date();
       
       // Set to next Monday
       nextStream.setDate(now.getDate() + ((1 + 7 - now.getDay()) % 7));

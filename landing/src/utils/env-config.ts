@@ -26,7 +26,7 @@ export function setupEnvironment(manualConfig?: Record<string, string>) {
   
   // Set up Twitch client ID - IMPORTANT: Fallback to a hardcoded value for development
   if (window.ENV.TWITCH_CLIENT_ID) {
-    window.TWITCH_CLIENT_ID = window.ENV.TWITCH_CLIENT_ID;
+    window.TWITCH_CLIENT_ID = window.ENV.TWITCH_CLIENT_ID as string;
   } else {
     // Fallback to development value if needed
     // Replace with your actual Twitch client ID for development
@@ -71,6 +71,6 @@ declare global {
   interface Window {
     ENV: Record<string, unknown>;
     TWITCH_CLIENT_ID?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   }
 }
