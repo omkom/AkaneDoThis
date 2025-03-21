@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaTwitch } from 'react-icons/fa';
 import { trackClick } from '../utils/analytics';
-import React from 'react';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -19,7 +18,7 @@ export default function Header() {
       }
       
       // Determine active section based on scroll position
-      const sections = ['home', 'story', 'schedule', 'videos', 'community', 'contact'];
+      const sections = ['home', 'story', 'schedule', 'videos', 'twitch', 'community', 'contact'];
       for (const section of sections) {
         const element = document.getElementById(section);
         if (element) {
@@ -58,7 +57,7 @@ export default function Header() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center">
           {/* Logo with clean cyberpunk typography */}
-          <a href="https://twitch.tv" className="text-2xl font-bold font-cyber">
+          <a href="#" className="text-2xl font-bold font-cyber">
             <span className="text-electric-blue neon-text blue">Akane</span>
             <span className="text-neon-pink neon-text pink">DoThis</span>
           </a>
@@ -68,6 +67,7 @@ export default function Header() {
             <a 
               href="#home" 
               className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-2 ${activeSection === 'home' ? 'text-neon-pink' : ''}`}
+              onClick={() => handleNavClick('home')}
             >
               <span className="relative">
                 Accueil
@@ -80,6 +80,7 @@ export default function Header() {
             <a 
               href="#story" 
               className={`text-white hover:text-electric-blue transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'story' ? 'text-electric-blue' : ''}`}
+              onClick={() => handleNavClick('story')}
             >
               <span className="relative">
                 Histoire
@@ -92,6 +93,7 @@ export default function Header() {
             <a 
               href="#schedule" 
               className={`text-white hover:text-vivid-lime transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'schedule' ? 'text-vivid-lime' : ''}`}
+              onClick={() => handleNavClick('schedule')}
             >
               <span className="relative">
                 Programme
@@ -104,6 +106,7 @@ export default function Header() {
             <a 
               href="#videos" 
               className={`text-white hover:text-bright-purple transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'videos' ? 'text-bright-purple' : ''}`}
+              onClick={() => handleNavClick('videos')}
             >
               <span className="relative">
                 Vidéos
@@ -113,9 +116,25 @@ export default function Header() {
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-bright-purple"></span>
               )}
             </a>
+            {/* New Twitch Menu Item */}
+            <a 
+              href="#twitch" 
+              className={`text-white hover:text-neon-cyan transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'twitch' ? 'text-neon-cyan' : ''}`}
+              onClick={() => handleNavClick('twitch')}
+            >
+              <span className="relative flex items-center">
+                <FaTwitch className="mr-1" />
+                Twitch
+                <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-cyan transition-all duration-300 ${activeSection === 'twitch' ? 'w-full' : 'group-hover:w-full'}`}></span>
+              </span>
+              {activeSection === 'twitch' && (
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-neon-cyan"></span>
+              )}
+            </a>
             <a 
               href="#community" 
               className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'community' ? 'text-neon-pink' : ''}`}
+              onClick={() => handleNavClick('community')}
             >
               <span className="relative">
                 Communauté
@@ -128,6 +147,7 @@ export default function Header() {
             <a 
               href="#contact" 
               className={`text-white hover:text-electric-blue transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'contact' ? 'text-electric-blue' : ''}`}
+              onClick={() => handleNavClick('contact')}
             >
               <span className="relative">
                 Contact
@@ -137,24 +157,27 @@ export default function Header() {
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-electric-blue"></span>
               )}
             </a>
-            
-            {/* CTA Contact Button */}
-            <a 
-              href="#contact" 
-              className="ml-4 px-4 py-2 bg-gradient-to-r from-neon-pink to-bright-purple text-white font-cyber rounded-md relative group overflow-hidden"
-            >
-              <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-electric-blue to-vivid-lime opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-              <span className="relative z-10">Me Contacter</span>
-            </a>
           </nav>
           
           {/* Social Icons - Desktop */}
           <div className="hidden md:flex items-center space-x-4">
-            <a href="https://www.twitch.tv/akanedothis" className="text-white hover:text-neon-pink transition">
+            <a 
+              href="https://www.twitch.tv/akanedothis" 
+              className="text-white hover:text-neon-pink transition"
+              onClick={() => handleSocialClick('twitch', 'https://www.twitch.tv/akanedothis')}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <FaTwitch className="w-5 h-5" />
             </a>
             
-            <a href="https://discord.gg/H67aXsYNa7" className="text-white hover:text-bright-purple transition">
+            <a 
+              href="https://discord.gg/H67aXsYNa7" 
+              className="text-white hover:text-bright-purple transition"
+              onClick={() => handleSocialClick('discord', 'https://discord.gg/H67aXsYNa7')}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <FaDiscord className="w-5 h-5" />
             </a>
           </div>
@@ -163,6 +186,7 @@ export default function Header() {
           <button 
             className="md:hidden text-white"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               {isMobileMenuOpen ? (
@@ -182,7 +206,7 @@ export default function Header() {
                 <a 
                   href="#home" 
                   className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'home' ? 'text-neon-pink' : ''}`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => handleNavClick('home')}
                 >
                   <span className="relative">
                     Accueil
@@ -192,7 +216,7 @@ export default function Header() {
                 <a 
                   href="#story" 
                   className={`text-white hover:text-electric-blue transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'story' ? 'text-electric-blue' : ''}`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => handleNavClick('story')}
                 >
                   <span className="relative">
                     Histoire
@@ -202,7 +226,7 @@ export default function Header() {
                 <a 
                   href="#schedule" 
                   className={`text-white hover:text-vivid-lime transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'schedule' ? 'text-vivid-lime' : ''}`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => handleNavClick('schedule')}
                 >
                   <span className="relative">
                     Programme
@@ -212,17 +236,29 @@ export default function Header() {
                 <a 
                   href="#videos" 
                   className={`text-white hover:text-bright-purple transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'videos' ? 'text-bright-purple' : ''}`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => handleNavClick('videos')}
                 >
                   <span className="relative">
                     Vidéos
                     <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-bright-purple transition-all duration-300 ${activeSection === 'videos' ? 'w-full' : 'group-hover:w-full'}`}></span>
                   </span>
                 </a>
+                {/* New Twitch Menu Item for Mobile */}
+                <a 
+                  href="#twitch" 
+                  className={`text-white hover:text-neon-cyan transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'twitch' ? 'text-neon-cyan' : ''}`} 
+                  onClick={() => handleNavClick('twitch')}
+                >
+                  <span className="relative flex items-center">
+                    <FaTwitch className="mr-1" />
+                    Twitch
+                    <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-cyan transition-all duration-300 ${activeSection === 'twitch' ? 'w-full' : 'group-hover:w-full'}`}></span>
+                  </span>
+                </a>
                 <a 
                   href="#community" 
                   className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'community' ? 'text-neon-pink' : ''}`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => handleNavClick('community')}
                 >
                   <span className="relative">
                     Communauté
@@ -232,7 +268,7 @@ export default function Header() {
                 <a 
                   href="#contact" 
                   className={`text-white hover:text-electric-blue transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'contact' ? 'text-electric-blue' : ''}`} 
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => handleNavClick('contact')}
                 >
                   <span className="relative">
                     Contact
@@ -240,29 +276,50 @@ export default function Header() {
                   </span>
                 </a>
                 
-                {/* CTA Contact Button - Mobile */}
-                <a 
-                  href="#contact" 
-                  className="mt-2 px-4 py-2 bg-gradient-to-r from-neon-pink to-bright-purple text-white font-cyber rounded-md text-center"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Me Contacter
-                </a>
-                
                 <div className="flex space-x-4 pt-4 border-t border-white/20">
-                  <a href="https://www.twitch.tv/akanedothis" className="text-white hover:text-neon-pink transition">
+                  <a 
+                    href="https://www.twitch.tv/akanedothis" 
+                    className="text-white hover:text-neon-pink transition"
+                    onClick={() => handleSocialClick('twitch', 'https://www.twitch.tv/akanedothis')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <FaTwitch className="w-5 h-5" />
                   </a>
-                  <a href="https://www.youtube.com/@Akane.DoThis" className="text-white hover:text-electric-blue transition">
+                  <a 
+                    href="https://www.youtube.com/@Akane.DoThis" 
+                    className="text-white hover:text-electric-blue transition"
+                    onClick={() => handleSocialClick('youtube', 'https://www.youtube.com/@Akane.DoThis')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <FaYoutube className="w-5 h-5" />
                   </a>
-                  <a href="https://discord.gg/H67aXsYNa7" className="text-white hover:text-bright-purple transition">
+                  <a 
+                    href="https://discord.gg/H67aXsYNa7" 
+                    className="text-white hover:text-bright-purple transition"
+                    onClick={() => handleSocialClick('discord', 'https://discord.gg/H67aXsYNa7')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <FaDiscord className="w-5 h-5" />
                   </a>
-                  <a href="https://www.tiktok.com/@akanedothis" className="text-white hover:text-vivid-lime transition">
+                  <a 
+                    href="https://www.tiktok.com/@akanedothis" 
+                    className="text-white hover:text-vivid-lime transition"
+                    onClick={() => handleSocialClick('tiktok', 'https://www.tiktok.com/@akanedothis')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <FaTiktok className="w-5 h-5" />
                   </a>
-                  <a href="https://www.instagram.com/_akanedothis/" className="text-white hover:text-neon-pink transition">
+                  <a 
+                    href="https://www.instagram.com/_akanedothis/" 
+                    className="text-white hover:text-neon-pink transition"
+                    onClick={() => handleSocialClick('instagram', 'https://www.instagram.com/_akanedothis/')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <FaInstagram className="w-5 h-5" />
                   </a>
                 </div>
@@ -271,19 +328,6 @@ export default function Header() {
           </div>
         )}
       </div>
-      
-      {/* Add custom styles for the hover effects */}
-      <style jsx>{`
-        /* Glow effect for active links */
-        nav a.active span::after {
-          box-shadow: 0 0 8px currentColor;
-        }
-        
-        /* Hover effect for nav links */
-        nav a:hover span::after {
-          width: 100%;
-        }
-      `}</style>
     </header>
   );
 }

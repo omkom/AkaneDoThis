@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twitch Authentication</title>
+  <style>
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background-color: #121212;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    .container {
+      max-width: 600px;
+      padding: 2rem;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      border: 2px solid #FF2D95;
+      box-shadow: 0 0 15px rgba(255, 45, 149, 0.3);
+    }
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      color: #00E0FF;
+      margin-bottom: 1.5rem;
+    }
+    .status {
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+    .success {
+      color: #A6FF00;
+    }
+    .error {
+      color: #FF2D95;
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top: 4px solid #00E0FF;
+      width: 40px;
+      height: 40px;
+      margin: 20px auto;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Twitch Authentication</h1>
+    <div id="spinner" class="spinner"></div>
+    <div id="status" class="status">Processing authentication...</div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const statusElem = document.getElementById('status');
+      const spinnerElem = document.getElementById('spinner');
+      
+      // Extract access token from URL fragment
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      const state = params.get('state');
+      
+      if (accessToken) {
+        // Authentication successful
+        statusElem.textContent = 'Authentication successful! You can close this window.';
+        statusElem.className = 'status success';
+        
+        // Send the token back to the opener window
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({
+            type: 'TWITCH_AUTH',
+            token: accessToken,
+            state: state
+          }, window.location.origin);
+          
+          // Close this window after a short delay
+          setTimeout(() => {
+            window.close();
+          }, 2000);
+        } else {
+          statusElem.textContent = 'Authentication successful, but unable to communicate with the main window. Please close this window and try again.';
+        }
+      } else {
+        // No token found in the URL
+        statusElem.textContent = 'Authentication failed. No access token received.';
+        statusElem.className = 'status error';
+        spinnerElem.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>

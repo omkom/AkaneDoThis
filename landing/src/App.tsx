@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import Story from './components/Story';
@@ -6,16 +7,19 @@ import Videos from './components/Videos';
 import Community from './components/Community';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
-import { useState, useEffect } from 'react';
+import TwitchIntegration from './components/TwitchIntegration';
 import { trackPageView, trackFormSubmit } from './utils/analytics';
-//import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaDonate } from 'react-icons/fa';
-import twitchRoutes from './routes/twitch.js';
+import { setupEnvironment } from './utils/env-config';
 
 export default function App() {
   const [email, setEmail] = useState('');
 
-  // Track page view when component mounts
+  // Initialize environment configuration
   useEffect(() => {
+    // Set up environment variables
+    setupEnvironment();
+    
+    // Track page view
     trackPageView(window.location.pathname, document.title);
     
     // Track page changes
@@ -53,6 +57,17 @@ export default function App() {
       <Story />
       <Schedule />
       <Videos />
+      
+      {/* Add Twitch Integration Section */}
+      <section id="twitch" className="py-20 bg-black/70">
+        <div className="container mx-auto px-4">
+          <h2 className="neon-text cyan text-center text-4xl mb-12 font-cyber">Stream with Me</h2>
+          <div className="max-w-4xl mx-auto">
+            <TwitchIntegration />
+          </div>
+        </div>
+      </section>
+      
       <Community />
       <Contact />
       
