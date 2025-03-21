@@ -6,15 +6,42 @@ import Videos from './components/Videos';
 import Community from './components/Community';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { trackPageView, trackFormSubmit } from './utils/analytics';
 //import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaDonate } from 'react-icons/fa';
 
 export default function App() {
   const [email, setEmail] = useState('');
 
+  // Track page view when component mounts
+  useEffect(() => {
+    trackPageView(window.location.pathname, document.title);
+    
+    // Track page changes
+    const handleRouteChange = () => {
+      trackPageView(window.location.pathname, document.title);
+    };
+
+    // Listen for hash changes (since this is a single page app with hash navigation)
+    window.addEventListener('hashchange', handleRouteChange);
+    
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener('hashchange', handleRouteChange);
+    };
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle email submission
+    
+    // Track form submission
+    trackFormSubmit('newsletter_signup', { 
+      email: email,
+      source: 'footer_form'
+    });
+    
+    // Handle email submission logic
+    console.log('Email submitted:', email);
     setEmail('');
   };
 

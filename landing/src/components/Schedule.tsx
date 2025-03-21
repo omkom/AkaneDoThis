@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import React from 'react';
+
 
 export default function Schedule() {
   const [timeLeft, setTimeLeft] = useState({

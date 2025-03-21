@@ -1,3 +1,4 @@
+import React from 'react';
 import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaTwitch } from 'react-icons/fa';
 
 export default function Footer() {

@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaTwitch } from 'react-icons/fa';
+import { trackClick } from '../utils/analytics';
+import React from 'react';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -36,6 +38,20 @@ export default function Header() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
+  
+  const handleNavClick = (section: string) => {
+    // Track navigation click
+    trackClick('navigation', section);
+    
+    if (isMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  const handleSocialClick = (platform: string, url: string) => {
+    // Track social media click
+    trackClick('social', platform, url);
+  };
   
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'py-2' : 'py-4'} bg-black/90 backdrop-blur-md`}>

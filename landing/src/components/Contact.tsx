@@ -1,4 +1,46 @@
+import { useState } from 'react';
+import { trackFormSubmit } from '../utils/analytics';
+import React from 'react';
+
 export default function Contact() {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: ''
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Track form submission with analytics
+    trackFormSubmit('contact_form', {
+      subject: formData.subject,
+      has_message: formData.message.length > 0
+    });
+    
+    // Logic to handle form submission
+    console.log('Form submitted:', formData);
+    
+    // Reset form
+    setFormData({
+      name: '',
+      email: '',
+      subject: '',
+      message: ''
+    });
+    
+    // Here you would normally send the data to your backend
+  };
+
   return (
     <section id="contact" className="py-20">
       <div className="container mx-auto px-4">
@@ -7,24 +49,30 @@ export default function Contact() {
         <div className="max-w-4xl mx-auto">
           <div className="card-3d-container">
             <div className="neo-card neo-card-blue card-3d p-8">
-              <form className="space-y-6">
+              <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label htmlFor="name" className="block mb-2 font-cyber text-electric-blue">Votre Nom</label>
                     <input 
                       type="text" 
-                      id="name" 
+                      id="name"
+                      value={formData.name}
+                      onChange={handleChange}
                       className="w-full p-3 bg-black/70 border-2 border-electric-blue focus:border-neon-pink outline-none transition font-body"
                       placeholder="Entrez votre nom"
+                      required
                     />
                   </div>
                   <div>
                     <label htmlFor="email" className="block mb-2 font-cyber text-electric-blue">Votre Email</label>
                     <input 
                       type="email" 
-                      id="email" 
+                      id="email"
+                      value={formData.email}
+                      onChange={handleChange}
                       className="w-full p-3 bg-black/70 border-2 border-electric-blue focus:border-neon-pink outline-none transition font-body"
                       placeholder="Entrez votre email"
+                      required
                     />
                   </div>
                 </div>
@@ -33,19 +81,25 @@ export default function Contact() {
                   <label htmlFor="subject" className="block mb-2 font-cyber text-electric-blue">Sujet</label>
                   <input 
                     type="text" 
-                    id="subject" 
+                    id="subject"
+                    value={formData.subject}
+                    onChange={handleChange}
                     className="w-full p-3 bg-black/70 border-2 border-electric-blue focus:border-neon-pink outline-none transition font-body"
                     placeholder="De quoi s'agit-il ?"
+                    required
                   />
                 </div>
                 
                 <div>
                   <label htmlFor="message" className="block mb-2 font-cyber text-electric-blue">Message</label>
                   <textarea 
-                    id="message" 
+                    id="message"
+                    value={formData.message}
+                    onChange={handleChange}
                     rows={5}
                     className="w-full p-3 bg-black/70 border-2 border-electric-blue focus:border-neon-pink outline-none transition font-body"
                     placeholder="Votre message ici..."
+                    required
                   ></textarea>
                 </div>
                 

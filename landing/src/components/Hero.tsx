@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import React from 'react';
+
+
 
 export default function Hero() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -58,7 +61,7 @@ export default function Hero() {
         >
           AkaneDoThis
         </h1>
-        <style jsx>{`
+        <style>{`
           .glitching-text {
             text-shadow: 0.05em 0 0 #ec2225, -0.025em -0.05em 0 #313f97,
               0.025em 0.05em 0 #50c878;
@@ -216,7 +219,7 @@ export default function Hero() {
       </div>
       
       {/* CSS for the glitch effects */}
-      <style jsx>{`
+      <style>{`
         /* Always-on glitch effects */
         .glitch-overlay.active {
           opacity: 0.5;

@@ -1,3 +1,5 @@
+import React from 'react';
+
 export default function Videos() {
   return (
     <section id="videos" className="py-20 bg-black/50">

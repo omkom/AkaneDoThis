@@ -1,3 +1,5 @@
+import React from 'react';
+
 export default function Community() {
   return (
     <section id="community" className="py-20">

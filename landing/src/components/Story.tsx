@@ -1,3 +1,5 @@
+import React from 'react';
+
 export default function Story() {
   return (
     <section id="story" className="story py-20">
