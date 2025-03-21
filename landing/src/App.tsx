@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Header from './components/Header';
+// Import the modified Hero component (we'll assume it's saved as ModifiedHero.tsx)
 import Hero from './components/Hero';
 import Story from './components/Story';
 import Schedule from './components/Schedule';

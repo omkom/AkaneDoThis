@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
-
-
+import TwitchHeroOverlay from './TwitchHeroOverlay';
 
 export default function Hero() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -141,6 +140,9 @@ export default function Hero() {
           Découvrir Mon Univers
         </a>
       </div>
+      
+      {/* Twitch Hero Overlay - Added Component */}
+      <TwitchHeroOverlay />
       
       {/* Animated background elements */}
       <div className="absolute inset-0 pointer-events-none">
@@ -573,7 +575,7 @@ export default function Hero() {
           animation: artifacts-shift 5s infinite alternate;
         }
         
-        /* Animations for the new effects */
+        /* Animations for the effects */
         @keyframes glitch-layer-1 {
           0% {
             background-position: 0% 0%;
