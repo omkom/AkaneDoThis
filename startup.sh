@@ -13,7 +13,7 @@ touch $LOGFILE
 echo "" > $LOGFILE
 
 # Change to the project directory
-PROJECT_DIR="/path/to/your/akane/project"  # CHANGE THIS to your actual project directory
+PROJECT_DIR="/home/cubilizer/AkaneDoThis"  # CHANGE THIS to your actual project directory
 cd $PROJECT_DIR || {
     log "ERROR: Could not change to project directory: $PROJECT_DIR"
     exit 1
@@ -79,11 +79,11 @@ else
     log "❌ Landing page failed to start"
 fi
 
-# Check WordPress
-if docker-compose ps | grep -q "wordpress.*Up"; then
-    log "✅ WordPress is running"
-else
-    log "❌ WordPress failed to start"
-fi
+# # Check WordPress
+# if docker-compose ps | grep -q "wordpress.*Up"; then
+#     log "✅ WordPress is running"
+# else
+#     log "❌ WordPress failed to start"
+# fi
 
 log "Startup process completed"
