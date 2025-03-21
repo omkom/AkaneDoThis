@@ -21,7 +21,9 @@ sketch
 /da
 .env
 .twitch*
-*.log
+*_log.txt
+*dist/
+
 
 ### Temp WP ###
 /wp_*
