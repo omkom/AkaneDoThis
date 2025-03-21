@@ -13,6 +13,8 @@ services:
       - N8N_PROTOCOL=http
       - NODE_ENV=production
       - WEBHOOK_URL=http://localhost:5678/
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
     volumes:
       - n8n_data:/home/node/.n8n
     networks:

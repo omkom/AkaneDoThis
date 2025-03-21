@@ -20,6 +20,7 @@ sketch
 ### DA ###
 /da
 .env
+.twitch*
 
 ### Temp WP ###
 /wp_*

@@ -13,6 +13,8 @@ services:
       - "4173:5173"
     environment:
       - NODE_ENV=development
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
 
   build:
     build:
@@ -21,6 +23,8 @@ services:
     command: npm run build
     environment:
       - NODE_ENV=production
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
 
   serve:
     build:
@@ -31,3 +35,5 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
