@@ -1,6 +1,6 @@
 // src/components/TwitchScriptLoader.tsx
 import { useEffect, useState } from 'react';
-import { getEnv } from '../utils/env-config';
+import { getEnv, setupEnvironment } from '../utils/env-config';
 import React from 'react';
 
 interface TwitchScriptLoaderProps {
@@ -12,6 +12,13 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Initialize environment variables first
+    setupEnvironment({
+      // You can provide a fallback client ID here for development
+      // Replace with your actual Twitch client ID
+      TWITCH_CLIENT_ID: "udrg080q6g8t7qbhgo67x0ytt08otn" // Demo/placeholder client ID
+    });
+
     // Check if script is already loaded
     if (window.loginWithTwitch) {
       setScriptLoaded(true);
@@ -22,7 +29,7 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
       try {
         // Create script element
         const script = document.createElement('script');
-        script.src = '/js/twitch-auth-client.js';
+        script.src = '/twitch-auth-client.js';
         script.async = true;
         script.onload = () => {
           console.log('Twitch auth client script loaded successfully');

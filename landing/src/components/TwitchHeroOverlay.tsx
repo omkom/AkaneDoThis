@@ -104,7 +104,8 @@ const TwitchHeroOverlay: React.FC = () => {
   };
 
   // Function to fetch Twitch data when user is authenticated
-  const fetchTwitchData = async (token: string, userId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const fetchTwitchData = async (token: string, _id: string) => {
     try {
       // Fetch stream info
       const streamResponse = await fetch(`https://api.twitch.tv/helix/streams?user_login=${CHANNEL_NAME}`, {

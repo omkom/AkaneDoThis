@@ -11,7 +11,7 @@ import TwitchIntegration from './components/TwitchIntegration';
 import { trackPageView, trackFormSubmit } from './utils/analytics';
 import { setupEnvironment } from './utils/env-config';
 
-import './assets/js/cubi-easter-egg.js';
+// Import assets
 import React from 'react';
 
 export default function App() {
@@ -19,8 +19,12 @@ export default function App() {
 
   // Initialize environment configuration
   useEffect(() => {
-    // Set up environment variables
-    setupEnvironment();
+    // Set up environment variables with a fallback configuration
+    setupEnvironment({
+      // Add your development Twitch Client ID here for local development
+      // In production, this should come from the server's environment variables
+      TWITCH_CLIENT_ID: "udrg080q6g8t7qbhgo67x0ytt08otn" // Demo/placeholder client ID - replace with your actual one
+    });
     
     // Track page view
     trackPageView(window.location.pathname, document.title);
