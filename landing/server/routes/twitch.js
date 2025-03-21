@@ -1,8 +1,12 @@
 import express from 'express';
 import { getCombinedTwitchEvents } from '../services/twitch-schedule.js';
 import twitchAPI from '../services/twitch-api.js';
+import followRoutes from './twitch-follow.js';
 
 const router = express.Router();
+
+// Use the follow routes
+router.use('/', followRoutes);
 
 // Initialiser l'API Twitch au démarrage
 try {

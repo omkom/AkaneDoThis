@@ -53,7 +53,13 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    /* Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
   </style>
+  <!-- Add Google Fonts directly -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="container">
@@ -73,6 +79,8 @@
       const accessToken = params.get('access_token');
       const state = params.get('state');
       
+      console.log("Auth callback received. Token exists:", !!accessToken);
+      
       if (accessToken) {
         // Authentication successful
         statusElem.textContent = 'Authentication successful! You can close this window.';
@@ -80,16 +88,24 @@
         
         // Send the token back to the opener window
         if (window.opener && !window.opener.closed) {
-          window.opener.postMessage({
-            type: 'TWITCH_AUTH',
-            token: accessToken,
-            state: state
-          }, window.location.origin);
-          
-          // Close this window after a short delay
-          setTimeout(() => {
-            window.close();
-          }, 2000);
+          try {
+            window.opener.postMessage({
+              type: 'TWITCH_AUTH',
+              token: accessToken,
+              state: state
+            }, window.location.origin);
+            
+            console.log("Token sent to parent window");
+            
+            // Close this window after a short delay
+            setTimeout(() => {
+              window.close();
+            }, 2000);
+          } catch (error) {
+            console.error("Error sending message to parent:", error);
+            statusElem.textContent = 'Authentication successful, but error communicating with the main window.';
+            statusElem.className = 'status error';
+          }
         } else {
           statusElem.textContent = 'Authentication successful, but unable to communicate with the main window. Please close this window and try again.';
         }

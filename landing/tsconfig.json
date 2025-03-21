@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "services/twitch-api.js", "services/example-usage.js"]
+  "include": ["src", "services/twitch-api.js", "services/example-usage.js", "public/twitch-auth-client.js"]
 }

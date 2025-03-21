@@ -49,6 +49,8 @@
         // Build the authentication URL
         const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=${encodeURIComponent(scopes.join(' '))}&state=${state}`;
         
+        console.log("Opening auth URL:", authUrl);
+        
         // Open the popup window
         const popup = window.open(
           authUrl, 
@@ -68,6 +70,8 @@
           if (event.origin !== window.location.origin) {
             return;
           }
+          
+          console.log("Received message from popup:", event.data);
           
           // Check if the data contains a token
           if (event.data.type === 'TWITCH_AUTH' && event.data.token) {
@@ -233,4 +237,7 @@
         return false;
       }
     };
+
+    // Initialize - log if Twitch client ID is available
+    console.log('Twitch authentication client loaded. Client ID available:', !!TWITCH_CLIENT_ID);
   })();

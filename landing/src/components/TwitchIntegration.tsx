@@ -1,5 +1,7 @@
+// src/components/TwitchIntegration.tsx
 import React, { useState, useEffect } from 'react';
-import { FaTwitch, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaTwitch, FaExternalLinkAlt, FaEye, FaHeart, FaRegHeart, FaCalendarAlt } from 'react-icons/fa';
+import TwitchScriptLoader from './TwitchScriptLoader';
 
 // Define TypeScript interfaces for better type safety
 interface TwitchUserData {
@@ -55,6 +57,7 @@ interface TwitchEvent {
   start_time?: string;
   end_time?: string;
   profile_image_url?: string;
+  is_following?: boolean;
 }
 
 // Augment the Window interface for TypeScript
@@ -73,17 +76,38 @@ const TwitchIntegration: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [authData, setAuthData] = useState<TwitchAuthData | null>(null);
   const [events, setEvents] = useState<TwitchEvent[]>([]);
+  const [isFollowing, setIsFollowing] = useState<Record<string, boolean>>({});
+  const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
 
   // Check for existing authentication on component mount
   useEffect(() => {
-    // Safely access window object in a way that works with SSR
-    if (typeof window !== 'undefined' && window.getTwitchAuth) {
-      const storedAuth = window.getTwitchAuth();
-      if (storedAuth) {
-        setAuthData(storedAuth);
-        fetchEvents(storedAuth.token, storedAuth.userData.id);
+    const checkAuth = async () => {
+      // Safely access window object in a way that works with SSR
+      if (typeof window !== 'undefined' && window.getTwitchAuth) {
+        const storedAuth = window.getTwitchAuth();
+        if (storedAuth) {
+          setAuthData(storedAuth);
+          
+          // Validate token before using it
+          try {
+            const isValid = await window.validateTwitchToken?.(storedAuth.token);
+            if (isValid) {
+              fetchEvents(storedAuth.token, storedAuth.userData.id);
+            } else {
+              // Token is invalid, log out
+              await window.logoutFromTwitch?.();
+              setAuthData(null);
+              setError("Your Twitch session has expired. Please log in again.");
+            }
+          } catch (err) {
+            console.error("Error validating token:", err);
+            setError("Failed to validate your Twitch session.");
+          }
+        }
       }
-    }
+    };
+    
+    checkAuth();
   }, []);
 
   // Function to handle login
@@ -93,13 +117,19 @@ const TwitchIntegration: React.FC = () => {
     
     try {
       if (typeof window !== 'undefined' && window.loginWithTwitch) {
-        const auth = await window.loginWithTwitch(['user:read:follows', 'user:read:subscriptions']);
+        const auth = await window.loginWithTwitch([
+          'user:read:follows',
+          'user:read:subscriptions',
+          'user:edit:follows'
+        ]);
+        
         setAuthData(auth);
         fetchEvents(auth.token, auth.userData.id);
       } else {
         throw new Error('Twitch authentication function not available');
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError(err instanceof Error ? err.message : 'An error occurred during authentication');
     } finally {
       setIsLoading(false);
@@ -115,6 +145,7 @@ const TwitchIntegration: React.FC = () => {
         await window.logoutFromTwitch(authData.token);
         setAuthData(null);
         setEvents([]);
+        setIsFollowing({});
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during logout');
@@ -126,6 +157,7 @@ const TwitchIntegration: React.FC = () => {
   // Function to fetch Twitch events (live streams and scheduled events)
   const fetchEvents = async (token: string, userId: string) => {
     setIsLoading(true);
+    setError(null);
     
     try {
       // Fetch live streams first
@@ -177,7 +209,38 @@ const TwitchIntegration: React.FC = () => {
           }));
           
           // Combine live and scheduled events
-          setEvents([...liveEvents, ...scheduledEvents]);
+          const allEvents = [...liveEvents, ...scheduledEvents];
+          setEvents(allEvents);
+          
+          // Fetch follow status for each broadcaster
+          const followStatus: Record<string, boolean> = {};
+          
+          // Create a unique list of broadcaster IDs
+          const broadcasterIds = Array.from(new Set(allEvents.map(event => event.broadcaster_id)));
+          
+          // Check follow status for each broadcaster
+          for (const broadcasterId of broadcasterIds) {
+            try {
+              const followResponse = await fetch(
+                `https://api.twitch.tv/helix/users/follows?from_id=${userId}&to_id=${broadcasterId}`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Client-ID': window.TWITCH_CLIENT_ID || ''
+                  }
+                }
+              );
+              
+              if (followResponse.ok) {
+                const followData = await followResponse.json();
+                followStatus[broadcasterId] = followData.data && followData.data.length > 0;
+              }
+            } catch (followErr) {
+              console.error(`Error checking follow status for ${broadcasterId}:`, followErr);
+            }
+          }
+          
+          setIsFollowing(followStatus);
         }
       } catch (scheduleErr) {
         console.error('Error fetching scheduled events:', scheduleErr);
@@ -188,6 +251,52 @@ const TwitchIntegration: React.FC = () => {
       setEvents([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function to toggle follow status for a channel
+  const toggleFollow = async (broadcasterId: string, broadcasterName: string, currentlyFollowing: boolean) => {
+    if (!authData) return;
+    
+    setFollowLoading(prev => ({ ...prev, [broadcasterId]: true }));
+    
+    try {
+      const userId = authData.userData.id;
+      const method = currentlyFollowing ? 'DELETE' : 'POST';
+      const url = `https://api.twitch.tv/helix/users/follows`;
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${authData.token}`,
+          'Client-ID': window.TWITCH_CLIENT_ID || '',
+          'Content-Type': 'application/json'
+        },
+        body: method === 'POST' 
+          ? JSON.stringify({ 
+              from_id: userId, 
+              to_id: broadcasterId 
+            }) 
+          : undefined,
+      });
+      
+      if (response.ok) {
+        // Update local follow status
+        setIsFollowing(prev => ({
+          ...prev,
+          [broadcasterId]: !currentlyFollowing
+        }));
+        
+        // Show success message
+        setError(null);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error updating follow status');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to ${currentlyFollowing ? 'unfollow' : 'follow'} ${broadcasterName}`);
+    } finally {
+      setFollowLoading(prev => ({ ...prev, [broadcasterId]: false }));
     }
   };
 
@@ -209,134 +318,270 @@ const TwitchIntegration: React.FC = () => {
     return url.replace('{width}', '320').replace('{height}', '180');
   };
 
+  // Calculate time until stream starts
+  const getTimeUntil = (dateString: string) => {
+    const now = new Date();
+    const streamDate = new Date(dateString);
+    const diffMs = streamDate.getTime() - now.getTime();
+    
+    if (diffMs <= 0) return "Starting soon";
+    
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffDays > 0) {
+      return `Starts in ${diffDays}d ${diffHours}h`;
+    } else if (diffHours > 0) {
+      return `Starts in ${diffHours}h ${diffMinutes}m`;
+    } else {
+      return `Starts in ${diffMinutes} minutes`;
+    }
+  };
+
   return (
-    <div className="twitch-integration neo-card neo-card-purple p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-cyber neon-text purple flex items-center">
-          <FaTwitch className="mr-2" /> Twitch Integration
-        </h3>
-        
-        {authData ? (
-          <div className="flex items-center">
-            <img 
-              src={authData.userData.profile_image_url} 
-              alt={authData.userData.display_name} 
-              className="w-8 h-8 rounded-full mr-2"
-            />
-            <span className="mr-4">{authData.userData.display_name}</span>
-            <button 
-              onClick={handleLogout}
-              disabled={isLoading}
-              className="px-4 py-1 bg-bright-purple/20 border border-bright-purple rounded text-white hover:bg-bright-purple/30 transition"
-            >
-              Log Out
-            </button>
-          </div>
-        ) : (
-          <button 
-            onClick={handleLogin}
-            disabled={isLoading}
-            className="px-4 py-2 bg-bright-purple text-white hover:bg-neon-pink transition font-cyber"
-          >
-            {isLoading ? 'Connecting...' : 'Connect with Twitch'}
-          </button>
-        )}
-      </div>
-      
-      {error && (
-        <div className="mb-6 p-4 bg-red-900/30 border border-red-500 text-red-200 rounded">
-          {error}
-        </div>
-      )}
-      
-      {authData && (
-        <>
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="text-lg font-cyber">Your Twitch Feed</h4>
-            <button 
-              onClick={refreshEvents}
-              disabled={isLoading}
-              className="text-sm px-3 py-1 border border-electric-blue rounded text-white hover:bg-electric-blue/20 transition"
-            >
-              {isLoading ? 'Refreshing...' : 'Refresh'}
-            </button>
-          </div>
+    <TwitchScriptLoader>
+      <div className="twitch-integration neo-card neo-card-purple p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-cyber neon-text purple flex items-center">
+            <FaTwitch className="mr-2" /> Twitch Integration
+          </h3>
           
-          {events.length > 0 ? (
-            <div className="space-y-4">
-              {events.map(event => (
-                <div key={event.id} className={`neo-card ${event.type === 'live' ? 'neo-card-pink' : 'neo-card-blue'} p-4`}>
-                  <div className="flex items-start">
-                    {event.type === 'live' && event.thumbnail_url && (
-                      <div className="w-32 h-18 mr-4 overflow-hidden">
-                        <img 
-                          src={formatThumbnailUrl(event.thumbnail_url)} 
-                          alt={event.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <h5 className="font-bold">{event.title}</h5>
-                        {event.type === 'live' && (
-                          <span className="px-2 py-1 bg-red-600 text-white text-xs rounded">LIVE</span>
-                        )}
-                      </div>
-                      <p className="text-sm">
-                        <span className="text-gray-400">Streamer:</span> {event.broadcaster_name}
-                      </p>
-                      
-                      {event.type === 'live' && event.game_name && (
-                        <p className="text-sm">
-                          <span className="text-gray-400">Playing:</span> {event.game_name}
-                        </p>
-                      )}
-                      
-                      {event.type === 'live' && event.viewer_count !== undefined && (
-                        <p className="text-sm">
-                          <span className="text-gray-400">Viewers:</span> {event.viewer_count.toLocaleString()}
-                        </p>
-                      )}
-                      
-                      {event.type === 'scheduled' && event.start_time && (
-                        <p className="text-sm">
-                          <span className="text-gray-400">Scheduled for:</span> {formatDate(event.start_time)}
-                        </p>
-                      )}
-                      
-                      <div className="mt-2">
-                        <a 
-                          href={`https://twitch.tv/${event.broadcaster_name}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`text-sm px-3 py-1 inline-flex items-center ${
-                            event.type === 'live' 
-                              ? 'border border-neon-pink text-white hover:bg-neon-pink/20' 
-                              : 'border border-electric-blue text-white hover:bg-electric-blue/20'
-                          } transition rounded`}
-                        >
-                          {event.type === 'live' ? 'Watch Now' : 'View Channel'}
-                          <FaExternalLinkAlt className="ml-1" size={12} />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+          {authData ? (
+            <div className="flex items-center">
+              <img 
+                src={authData.userData.profile_image_url} 
+                alt={authData.userData.display_name} 
+                className="w-8 h-8 rounded-full mr-2"
+              />
+              <span className="mr-4">{authData.userData.display_name}</span>
+              <button 
+                onClick={handleLogout}
+                disabled={isLoading}
+                className="px-4 py-1 bg-bright-purple/20 border border-bright-purple rounded text-white hover:bg-bright-purple/30 transition"
+              >
+                Log Out
+              </button>
             </div>
           ) : (
-            <div className="text-center py-8">
-              {isLoading ? (
-                <p>Loading your Twitch feed...</p>
-              ) : (
-                <p>No live or upcoming streams found from channels you follow.</p>
-              )}
-            </div>
+            <button 
+              onClick={handleLogin}
+              disabled={isLoading}
+              className="px-4 py-2 bg-bright-purple text-white hover:bg-neon-pink transition font-cyber"
+            >
+              {isLoading ? 'Connecting...' : 'Connect with Twitch'}
+            </button>
           )}
-        </>
-      )}
-    </div>
+        </div>
+        
+        {error && (
+          <div className="mb-6 p-4 bg-red-900/30 border border-red-500 text-red-200 rounded">
+            {error}
+          </div>
+        )}
+        
+        {authData ? (
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-lg font-cyber">Your Twitch Feed</h4>
+              <button 
+                onClick={refreshEvents}
+                disabled={isLoading}
+                className="text-sm px-3 py-1 border border-electric-blue rounded text-white hover:bg-electric-blue/20 transition"
+              >
+                {isLoading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+            
+            {events.length > 0 ? (
+              <div className="space-y-4">
+                {/* Live Streams Section */}
+                {events.filter(e => e.type === 'live').length > 0 && (
+                  <div className="mb-2">
+                    <h4 className="text-lg font-cyber neon-text pink mb-2">Live Now</h4>
+                    {events
+                      .filter(event => event.type === 'live')
+                      .map(event => (
+                        <div key={event.id} className="neo-card neo-card-pink p-4 mb-4">
+                          <div className="flex items-start">
+                            {event.thumbnail_url && (
+                              <div className="w-32 h-18 mr-4 overflow-hidden">
+                                <img 
+                                  src={formatThumbnailUrl(event.thumbnail_url)} 
+                                  alt={event.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <div className="flex justify-between items-start">
+                                <h5 className="font-bold">{event.title}</h5>
+                                <span className="px-2 py-1 bg-red-600 text-white text-xs rounded flex items-center">
+                                  <FaEye className="mr-1" /> {event.viewer_count?.toLocaleString() || 'LIVE'}
+                                </span>
+                              </div>
+                              <p className="text-sm">
+                                <span className="text-gray-400">Streamer:</span> {event.broadcaster_name}
+                              </p>
+                              
+                              {event.game_name && (
+                                <p className="text-sm">
+                                  <span className="text-gray-400">Playing:</span> {event.game_name}
+                                </p>
+                              )}
+                              
+                              <div className="mt-2 flex items-center space-x-2">
+                                <a 
+                                  href={`https://twitch.tv/${event.broadcaster_name}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm px-3 py-1 inline-flex items-center border border-neon-pink text-white hover:bg-neon-pink/20 transition rounded"
+                                >
+                                  Watch Now <FaExternalLinkAlt className="ml-1" size={12} />
+                                </a>
+                                
+                                <button
+                                  onClick={() => toggleFollow(
+                                    event.broadcaster_id, 
+                                    event.broadcaster_name, 
+                                    isFollowing[event.broadcaster_id] || false
+                                  )}
+                                  disabled={followLoading[event.broadcaster_id]}
+                                  className="text-sm px-3 py-1 inline-flex items-center border border-electric-blue text-white hover:bg-electric-blue/20 transition rounded"
+                                >
+                                  {followLoading[event.broadcaster_id] ? (
+                                    <span className="flex items-center">
+                                      <div className="w-3 h-3 border-t-2 border-electric-blue rounded-full animate-spin mr-1"></div>
+                                      Loading...
+                                    </span>
+                                  ) : isFollowing[event.broadcaster_id] ? (
+                                    <span className="flex items-center">
+                                      <FaHeart className="mr-1 text-neon-pink" /> Following
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center">
+                                      <FaRegHeart className="mr-1" /> Follow
+                                    </span>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+                
+                {/* Scheduled Streams Section */}
+                {events.filter(e => e.type === 'scheduled').length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-cyber neon-text cyan mb-2">Upcoming Streams</h4>
+                    {events
+                      .filter(event => event.type === 'scheduled')
+                      .sort((a, b) => new Date(a.start_time || '').getTime() - new Date(b.start_time || '').getTime())
+                      .map(event => (
+                        <div key={event.id} className="neo-card neo-card-blue p-4 mb-4">
+                          <div className="flex items-start">
+                            <div className="mr-4 text-3xl text-electric-blue">
+                              <FaCalendarAlt />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-start">
+                                <h5 className="font-bold">{event.title}</h5>
+                                <span className="px-2 py-1 bg-electric-blue/30 text-white text-xs rounded">
+                                  {event.start_time && getTimeUntil(event.start_time)}
+                                </span>
+                              </div>
+                              <p className="text-sm">
+                                <span className="text-gray-400">Streamer:</span> {event.broadcaster_name}
+                              </p>
+                              
+                              {event.category && (
+                                <p className="text-sm">
+                                  <span className="text-gray-400">Category:</span> {event.category}
+                                </p>
+                              )}
+                              
+                              {event.start_time && (
+                                <p className="text-sm">
+                                  <span className="text-gray-400">Time:</span> {formatDate(event.start_time)}
+                                </p>
+                              )}
+                              
+                              <div className="mt-2 flex items-center space-x-2">
+                                <a 
+                                  href={`https://twitch.tv/${event.broadcaster_name}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm px-3 py-1 inline-flex items-center border border-electric-blue text-white hover:bg-electric-blue/20 transition rounded"
+                                >
+                                  View Channel <FaExternalLinkAlt className="ml-1" size={12} />
+                                </a>
+                                
+                                <button
+                                  onClick={() => toggleFollow(
+                                    event.broadcaster_id, 
+                                    event.broadcaster_name, 
+                                    isFollowing[event.broadcaster_id] || false
+                                  )}
+                                  disabled={followLoading[event.broadcaster_id]}
+                                  className="text-sm px-3 py-1 inline-flex items-center border border-electric-blue text-white hover:bg-electric-blue/20 transition rounded"
+                                >
+                                  {followLoading[event.broadcaster_id] ? (
+                                    <span className="flex items-center">
+                                      <div className="w-3 h-3 border-t-2 border-electric-blue rounded-full animate-spin mr-1"></div>
+                                      Loading...
+                                    </span>
+                                  ) : isFollowing[event.broadcaster_id] ? (
+                                    <span className="flex items-center">
+                                      <FaHeart className="mr-1 text-neon-pink" /> Following
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center">
+                                      <FaRegHeart className="mr-1" /> Follow
+                                    </span>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                {isLoading ? (
+                  <div className="flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-electric-blue mb-4"></div>
+                    <p>Loading your Twitch feed...</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="mb-4">No live or upcoming streams found from channels you follow.</p>
+                    <p className="text-sm text-gray-400">Try following more channels or check back later!</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <FaTwitch className="mx-auto text-5xl text-bright-purple mb-4" />
+            <h4 className="text-xl font-cyber mb-2">Connect to Twitch</h4>
+            <p className="text-gray-400 mb-6">See live streams and upcoming events from channels you follow</p>
+            <button 
+              onClick={handleLogin}
+              disabled={isLoading}
+              className="px-6 py-2 bg-bright-purple text-white hover:bg-neon-pink transition font-cyber"
+            >
+              {isLoading ? 'Connecting...' : 'Connect with Twitch'}
+            </button>
+          </div>
+        )}
+      </div>
+    </TwitchScriptLoader>
   );
 };
 
