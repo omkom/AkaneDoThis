@@ -1,0 +1,17 @@
+[Unit]
+Description=Akane Production Environment
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/cubilizer/AkaneDoThis
+ExecStart=/home/cubilizer/AkaneDoThisstartup.sh
+TimeoutStartSec=0
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
