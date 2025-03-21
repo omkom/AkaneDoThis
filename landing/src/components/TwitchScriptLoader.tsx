@@ -1,6 +1,7 @@
 // src/components/TwitchScriptLoader.tsx
 import { useEffect, useState } from 'react';
 import { getEnv } from '../utils/env-config';
+import React from 'react';
 
 interface TwitchScriptLoaderProps {
   children: React.ReactNode;

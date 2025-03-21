@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaTwitch } from 'react-icons/fa';
 import { trackClick } from '../utils/analytics';
+import React from 'react';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);

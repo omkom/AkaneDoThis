@@ -12,6 +12,7 @@ import { trackPageView, trackFormSubmit } from './utils/analytics';
 import { setupEnvironment } from './utils/env-config';
 
 import './assets/js/cubi-easter-egg.js';
+import React from 'react';
 
 export default function App() {
   const [email, setEmail] = useState('');

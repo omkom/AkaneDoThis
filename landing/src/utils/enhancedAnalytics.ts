@@ -104,7 +104,7 @@ export function trackAddToCart(
 }
 
 // Track checkout process
-export function trackBeginCheckout(cartItems: any[], coupon?: string) {
+export function trackBeginCheckout(cartItems: unknown[], coupon?: string) {
   trackEvent('begin_checkout', {
     items: cartItems,
     coupon: coupon
@@ -118,7 +118,7 @@ export function trackPurchase(
   tax?: number,
   shipping?: number,
   coupon?: string,
-  items?: any[]
+  items?: unknown[]
 ) {
   trackEvent('purchase', {
     transaction_id: transactionId,

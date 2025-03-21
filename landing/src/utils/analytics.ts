@@ -87,6 +87,6 @@ export default {
 // Add this to global Window interface
 declare global {
   interface Window {
-    dataLayer: any[];
+    dataLayer: unknown[];
   }
 }
