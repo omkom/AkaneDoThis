@@ -9,6 +9,7 @@ import Contact from './components/Contact';
 import Footer from './components/Footer';
 import TwitchIntegration from './components/TwitchIntegration';
 import { trackPageView, trackFormSubmit } from './utils/analytics';
+import TwitchApiLogger from './components/TwitchApiLogger';
 import { setupEnvironment } from './utils/env-config';
 
 // Import assets
@@ -99,6 +100,8 @@ export default function App() {
       </section>
       
       <Footer />
+
+      {process.env.NODE_ENV === 'development' && <TwitchApiLogger />}
     </div>
   );
 }

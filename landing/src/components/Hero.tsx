@@ -135,7 +135,7 @@ export default function Hero() {
             }
           }
         `}</style>
-        <p className="font-body text-xl md:text-2xl mb-8 text-electric-blue tracking-wide">Plongez dans l'Univers Néon de la Créativité</p>
+        <p className="font-body text-xl md:text-2xl mb-8 text-electric-blue tracking-wide">Diffuser le futur, un pixel à la fois</p>
         <a href="#story" className="font-cyber mt-8 inline-block px-6 py-3 border-2 border-neon-pink text-white bg-black/30 backdrop-blur-sm hover:bg-neon-pink/20 transition duration-300 neon-text pink">
           Découvrir Mon Univers
         </a>

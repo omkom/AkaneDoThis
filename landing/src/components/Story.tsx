@@ -4,12 +4,10 @@ export default function Story() {
   return (
     <section id="story" className="story py-20">
       <div className="container mx-auto px-4">
-        <h2 className="neon-text cyan text-center text-4xl mb-12 font-cyber">Le Voyage Cyberpunk</h2>
+        <h2 className="neon-text cyan text-center text-4xl mb-12 font-cyber">La DA D'Akane</h2>
         <div className="content-grid max-w-4xl mx-auto">
           <p className="story-text text-lg text-center mb-8 font-body">
-            Des salles d'arcade rétro aux futurs cybernétiques, je construis une communauté où le gaming 
-            rencontre l'art. Rejoignez-moi dans cet univers illuminé au néon de speedruns, 
-            de programmation créative et de contenu innovant sur Twitch, YouTube et au-delà.
+          Yo, bienvenue dans l’univers d’AkaneDothis. Ici, chaque live est une vibe authentique, mêlant gaming de haut niveau, discussions qui frappent et une esthétique futuriste qui te transporte direct dans le futur. On joue, on parle, on ressent – c’est le rendez-vous des esprits libres.
           </p>
           
           <div className="grid md:grid-cols-2 gap-8 mt-12">
@@ -30,7 +28,7 @@ export default function Story() {
             <div className="card-3d-container">
               <div className="neo-card neo-card-lime card-3d p-6">
                 <h3 className="neon-text lime text-xl mb-4 font-cyber">Focus Communautaire</h3>
-                <p className="font-body">Mes streams sont plus que du contenu—ils sont un lieu de rassemblement pour les passionnés de gaming, de technologie et d'art numérique.</p>
+                <p className="font-body">Mes streams, c'est avant tout un espace de rencontre et d'échange. Ici, la bienveillance et l'authenticité priment, pour que chaque interaction devienne un moment de partage unique.</p>
               </div>
             </div>
             

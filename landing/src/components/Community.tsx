@@ -4,13 +4,13 @@ export default function Community() {
   return (
     <section id="community" className="py-20">
       <div className="container mx-auto px-4">
-        <h2 className="neon-text pink text-center text-4xl mb-12 font-cyber">Rejoindre La Communauté</h2>
+        <h2 className="neon-text pink text-center text-4xl mb-12 font-cyber">Rejoindre La Vibe de ma Communauté</h2>
         
         <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8">
           <div className="card-3d-container">
             <div className="neo-card neo-card-blue card-3d p-6">
               <h3 className="neon-text cyan text-xl mb-4 font-cyber">Serveur Discord</h3>
-              <p className="mb-4 font-body">Rejoignez notre communauté florissante de plus de 1 000 membres. Partagez vos créations, discutez des derniers jeux et soyez notifié quand je passe en direct.</p>
+              <p className="mb-4 font-body">Ma communauté, c’est une famille numérique de plus de 1 000 membres. Ici, on partage nos passions, nos créations et nos délires, toujours dans le respect et la bonne humeur. Entre discussions en live, sessions collaboratives et échanges de tips, tu trouveras toujours ta place.</p>
               <a href="https://discord.gg/H67aXsYNa7" className="inline-block px-6 py-2 border-2 border-electric-blue text-white hover:bg-electric-blue/20 transition duration-300 font-cyber">
                 Rejoindre Discord
               </a>
@@ -59,7 +59,7 @@ export default function Community() {
           <div className="card-3d-container">
             <div className="neo-card neo-card-lime card-3d p-6">
               <h3 className="neon-text lime text-xl mb-4 font-cyber">Soutenir le Stream</h3>
-              <p className="mb-4 font-body">Votre soutien m'aide à créer du meilleur contenu et à améliorer la qualité du stream. Envisagez de faire un don si vous appréciez le contenu !</p>
+              <p className="mb-4 font-body">Ton soutien est le carburant de ma créativité. En faisant un don, tu m’aides à créer du contenu encore plus innovant et à faire évoluer cette expérience unique.</p>
               <a href="https://streamlabs.com/akanedothis1/tip"  target="_blank" className="inline-block px-6 py-2 border-2 border-vivid-lime text-white hover:bg-vivid-lime/20 transition duration-300 font-cyber">
                 Faire un Don
               </a>

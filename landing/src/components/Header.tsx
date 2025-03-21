@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaTwitch } from 'react-icons/fa';
 import { trackClick } from '../utils/analytics';
+import TwitchProfileBadge from './TwitchProfileBadge';
+import TwitchScriptLoader from './TwitchScriptLoader';
 import React from 'react';
 
 export default function Header() {
@@ -58,26 +60,13 @@ export default function Header() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center">
           {/* Logo with clean cyberpunk typography */}
-          <a href="#" className="text-2xl font-bold font-cyber">
+          <a href="#home" className="text-2xl font-bold font-cyber">
             <span className="text-electric-blue neon-text blue">Akane</span>
             <span className="text-neon-pink neon-text pink">DoThis</span>
           </a>
           
           {/* Desktop Navigation with border-bottom hover effect */}
           <nav className="hidden md:flex items-center space-x-8 relative">
-            <a 
-              href="#home" 
-              className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-2 ${activeSection === 'home' ? 'text-neon-pink' : ''}`}
-              onClick={() => handleNavClick('home')}
-            >
-              <span className="relative">
-                Accueil
-                <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-pink transition-all duration-300 ${activeSection === 'home' ? 'w-full' : 'group-hover:w-full'}`}></span>
-              </span>
-              {activeSection === 'home' && (
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-neon-pink"></span>
-              )}
-            </a>
             <a 
               href="#story" 
               className={`text-white hover:text-electric-blue transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'story' ? 'text-electric-blue' : ''}`}
@@ -117,21 +106,7 @@ export default function Header() {
                 <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-bright-purple"></span>
               )}
             </a>
-            {/* New Twitch Menu Item */}
-            <a 
-              href="#twitch" 
-              className={`text-white hover:text-neon-cyan transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'twitch' ? 'text-neon-cyan' : ''}`}
-              onClick={() => handleNavClick('twitch')}
-            >
-              <span className="relative flex items-center">
-                <FaTwitch className="mr-1" />
-                Twitch
-                <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-cyan transition-all duration-300 ${activeSection === 'twitch' ? 'w-full' : 'group-hover:w-full'}`}></span>
-              </span>
-              {activeSection === 'twitch' && (
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-neon-cyan"></span>
-              )}
-            </a>
+            
             <a 
               href="#community" 
               className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-2 group ${activeSection === 'community' ? 'text-neon-pink' : ''}`}
@@ -160,32 +135,17 @@ export default function Header() {
             </a>
           </nav>
           
-          {/* Social Icons - Desktop */}
-          <div className="hidden md:flex items-center space-x-4">
-            <a 
-              href="https://www.twitch.tv/akanedothis" 
-              className="text-white hover:text-neon-pink transition"
-              onClick={() => handleSocialClick('twitch', 'https://www.twitch.tv/akanedothis')}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <FaTwitch className="w-5 h-5" />
-            </a>
-            
-            <a 
-              href="https://discord.gg/H67aXsYNa7" 
-              className="text-white hover:text-bright-purple transition"
-              onClick={() => handleSocialClick('discord', 'https://discord.gg/H67aXsYNa7')}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <FaDiscord className="w-5 h-5" />
-            </a>
+          {/* Header Right Section with Twitch Profile Badge */}
+          <div className="flex items-center space-x-4">
+            {/* Twitch Profile Badge */}
+            <TwitchScriptLoader>
+              <TwitchProfileBadge />
+            </TwitchScriptLoader>
           </div>
           
           {/* Mobile Menu Button */}
           <button 
-            className="md:hidden text-white"
+            className="md:hidden text-white ml-4"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
           >
@@ -204,16 +164,6 @@ export default function Header() {
           <div className="md:hidden mt-4 card-3d-container">
             <div className="neo-card neo-card-pink card-3d p-4">
               <nav className="flex flex-col space-y-4">
-                <a 
-                  href="#home" 
-                  className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'home' ? 'text-neon-pink' : ''}`} 
-                  onClick={() => handleNavClick('home')}
-                >
-                  <span className="relative">
-                    Accueil
-                    <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-pink transition-all duration-300 ${activeSection === 'home' ? 'w-full' : 'group-hover:w-full'}`}></span>
-                  </span>
-                </a>
                 <a 
                   href="#story" 
                   className={`text-white hover:text-electric-blue transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'story' ? 'text-electric-blue' : ''}`} 
@@ -244,18 +194,7 @@ export default function Header() {
                     <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-bright-purple transition-all duration-300 ${activeSection === 'videos' ? 'w-full' : 'group-hover:w-full'}`}></span>
                   </span>
                 </a>
-                {/* New Twitch Menu Item for Mobile */}
-                <a 
-                  href="#twitch" 
-                  className={`text-white hover:text-neon-cyan transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'twitch' ? 'text-neon-cyan' : ''}`} 
-                  onClick={() => handleNavClick('twitch')}
-                >
-                  <span className="relative flex items-center">
-                    <FaTwitch className="mr-1" />
-                    Twitch
-                    <span className={`absolute left-0 bottom-0 w-0 h-0.5 bg-neon-cyan transition-all duration-300 ${activeSection === 'twitch' ? 'w-full' : 'group-hover:w-full'}`}></span>
-                  </span>
-                </a>
+                
                 <a 
                   href="#community" 
                   className={`text-white hover:text-neon-pink transition-all duration-300 font-cyber relative py-1 group ${activeSection === 'community' ? 'text-neon-pink' : ''}`} 
