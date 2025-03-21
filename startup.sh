@@ -49,7 +49,7 @@ cd $PROJECT_DIR || {
 
 # Start the production environment
 log "Starting production environment"
-docker-compose up -d || {
+docker compose up -d || {
     log "ERROR: Failed to start production environment"
     exit 1
 }
@@ -59,21 +59,21 @@ log "Verifying services"
 sleep 10  # Give containers time to start
 
 # Check Nginx
-if docker-compose ps | grep -q "nginx.*Up"; then
+if docker compose ps | grep -q "nginx.*Up"; then
     log "✅ Nginx is running"
 else
     log "❌ Nginx failed to start"
 fi
 
 # Check n8n
-if docker-compose ps | grep -q "n8n.*Up"; then
+if docker compose ps | grep -q "n8n.*Up"; then
     log "✅ n8n is running"
 else
     log "❌ n8n failed to start"
 fi
 
 # Check landing page
-if docker-compose ps | grep -q "landing.*Up"; then
+if docker compose ps | grep -q "landing.*Up"; then
     log "✅ Landing page is running"
 else
     log "❌ Landing page failed to start"
