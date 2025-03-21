@@ -31,7 +31,7 @@ export default function Community() {
               </a>
             </div>
           </div>
-          c
+          
           <div className="card-3d-container">
             <div className="neo-card neo-card-pink card-3d p-6">
               <h3 className="neon-text pink text-xl mb-4 font-cyber">Réseaux Sociaux</h3>

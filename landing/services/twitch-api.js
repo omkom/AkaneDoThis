@@ -342,7 +342,183 @@ class TwitchAPIService {
   async getFollowedStreams(userId, options = {}) {
     return this.request('streams/followed', 'GET', { user_id: userId, ...options });
   }
+
+  /**
+   * Permet à un utilisateur de suivre une chaîne Twitch
+   * Nécessite un token OAuth d'utilisateur avec le scope 'user:edit:follows'
+   * 
+   * @param {string} fromId - ID de l'utilisateur qui suit
+   * @param {string} toId - ID de la chaîne à suivre
+   * @param {boolean} [notifications=false] - Activer les notifications
+   * @param {string} userToken - Token OAuth de l'utilisateur (pas le token client credentials)
+   * @returns {Promise<Object>} - Réponse de l'API
+   */
+  async followChannel(fromId, toId, notifications = false, userToken) {
+    if (!userToken) {
+      throw new Error('Un token OAuth utilisateur avec le scope "user:edit:follows" est requis');
+    }
+
+    // Utilisez le token utilisateur fourni au lieu du token d'application
+    try {
+      const url = `https://api.twitch.tv/helix/users/follows`;
+      
+      if (DEBUG) {
+        console.log(`POST ${url}`);
+        console.log('Headers:', {
+          'Client-ID': this.clientId.substring(0, 5) + '...',
+          'Authorization': `Bearer ${userToken.substring(0, 5)}...`
+        });
+        console.log('Data:', {
+          from_id: fromId,
+          to_id: toId,
+          notifications
+        });
+      }
+      
+      const response = await axios({
+        method: 'POST',
+        url,
+        data: {
+          from_id: fromId,
+          to_id: toId,
+          notifications
+        },
+        headers: {
+          'Client-ID': this.clientId,
+          'Authorization': `Bearer ${userToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors du suivi de la chaîne:');
+      if (error.response) {
+        console.error('- Status:', error.response.status);
+        console.error('- Message:', error.response.data);
+        
+        if (error.response.status === 401) {
+          console.error('- Le token utilisateur est invalide ou n\'a pas les bons scopes');
+        }
+      } else {
+        console.error('- Erreur:', error.message);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Permet à un utilisateur d'arrêter de suivre une chaîne Twitch
+   * Nécessite un token OAuth d'utilisateur avec le scope 'user:edit:follows'
+   * 
+   * @param {string} fromId - ID de l'utilisateur qui suit
+   * @param {string} toId - ID de la chaîne à ne plus suivre
+   * @param {string} userToken - Token OAuth de l'utilisateur (pas le token client credentials)
+   * @returns {Promise<Object>} - Réponse de l'API
+   */
+  async unfollowChannel(fromId, toId, userToken) {
+    if (!userToken) {
+      throw new Error('Un token OAuth utilisateur avec le scope "user:edit:follows" est requis');
+    }
+
+    try {
+      const url = `https://api.twitch.tv/helix/users/follows`;
+      
+      if (DEBUG) {
+        console.log(`DELETE ${url}`);
+        console.log('Headers:', {
+          'Client-ID': this.clientId.substring(0, 5) + '...',
+          'Authorization': `Bearer ${userToken.substring(0, 5)}...`
+        });
+        console.log('Params:', {
+          from_id: fromId,
+          to_id: toId
+        });
+      }
+      
+      const response = await axios({
+        method: 'DELETE',
+        url,
+        params: {
+          from_id: fromId,
+          to_id: toId
+        },
+        headers: {
+          'Client-ID': this.clientId,
+          'Authorization': `Bearer ${userToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Erreur lors de l\'arrêt du suivi de la chaîne:');
+      if (error.response) {
+        console.error('- Status:', error.response.status);
+        console.error('- Message:', error.response.data);
+      } else {
+        console.error('- Erreur:', error.message);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Vérifie si un utilisateur suit une chaîne spécifique
+   * 
+   * @param {string} fromId - ID de l'utilisateur qui suit potentiellement
+   * @param {string} toId - ID de la chaîne potentiellement suivie
+   * @returns {Promise<boolean>} - true si l'utilisateur suit la chaîne, false sinon
+   */
+  async checkFollowing(fromId, toId) {
+    try {
+      const response = await this.request('users/follows', 'GET', {
+        from_id: fromId,
+        to_id: toId
+      });
+      
+      // Si la réponse contient au moins une entrée, l'utilisateur suit la chaîne
+      return response.data.length > 0;
+    } catch (error) {
+      console.error('Erreur lors de la vérification du suivi:');
+      if (error.response) {
+        console.error('- Status:', error.response.status);
+        console.error('- Message:', error.response.data);
+      } else {
+        console.error('- Erreur:', error.message);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Obtient la liste des chaînes suivies par un utilisateur
+   * 
+   * @param {string} userId - ID de l'utilisateur
+   * @param {Object} options - Options supplémentaires
+   * @param {number} [options.first] - Nombre de résultats à retourner
+   * @param {string} [options.after] - Curseur pour la pagination
+   * @returns {Promise<Object>} - Réponse de l'API avec la liste des chaînes suivies
+   */
+  async getFollowedChannels(userId, options = {}) {
+    try {
+      return await this.request('users/follows', 'GET', { 
+        from_id: userId,
+        ...options
+      });
+    } catch (error) {
+      console.error('Erreur lors de la récupération des chaînes suivies:');
+      if (error.response) {
+        console.error('- Status:', error.response.status);
+        console.error('- Message:', error.response.data);
+      } else {
+        console.error('- Erreur:', error.message);
+      }
+      throw error;
+    }
+  }
 }
+
 
 // Create a singleton instance
 const twitchAPI = new TwitchAPIService();

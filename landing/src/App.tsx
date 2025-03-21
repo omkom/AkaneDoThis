@@ -9,6 +9,7 @@ import Footer from './components/Footer';
 import { useState, useEffect } from 'react';
 import { trackPageView, trackFormSubmit } from './utils/analytics';
 //import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaDonate } from 'react-icons/fa';
+import twitchRoutes from './routes/twitch.js';
 
 export default function App() {
   const [email, setEmail] = useState('');
