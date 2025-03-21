@@ -11,6 +11,8 @@ import TwitchIntegration from './components/TwitchIntegration';
 import { trackPageView, trackFormSubmit } from './utils/analytics';
 import { setupEnvironment } from './utils/env-config';
 
+import './assets/js/cubi-easter-egg.js';
+
 export default function App() {
   const [email, setEmail] = useState('');
 
