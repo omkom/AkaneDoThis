@@ -1,20 +1,11 @@
 
-[2025-03-21 06:26:13] Starting build process...
-
-> vite-react-typescript-starter@0.0.0 build
-> vite build
-
-vite v5.4.14 building for production...
-transforming...
-✓ 44 modules transformed.
-rendering chunks...
-computing gzip size...
-dist/index.html                   0.85 kB │ gzip:  0.47 kB
-dist/assets/index-D5SwqRYC.css   26.05 kB │ gzip:  5.97 kB
-dist/assets/index-Cgqhqur2.js   202.86 kB │ gzip: 57.96 kB
-✓ built in 890ms
-total 0
-drwxr-xr-x   2 erlealberton  staff   64 21 mar 06:26 .
-drwx------@ 24 erlealberton  staff  768 21 mar 06:26 ..
-[2025-03-21 06:26:16] Build completed. You can now start the production environment with ./prod.sh
-[2025-03-21 06:26:16] If you encounter any issues, check build_log.txt for details
+[2025-03-21 07:09:25] Starting build process...
+total 16
+drwxr-xr-x   5 erlealberton  staff  160 21 mar 07:09 .
+drwx------@ 25 erlealberton  staff  800 21 mar 07:09 ..
+drwxr-xr-x   4 erlealberton  staff  128 21 mar 07:09 assets
+-rw-r--r--   1 erlealberton  staff  849 21 mar 07:09 index.html
+-rw-rw-r--   1 erlealberton  staff   80 21 mar 07:09 profile_image-150x150.png
+[2025-03-21 07:09:53] Build completed successfully.
+[2025-03-21 07:09:53] You can now start the production environment with ./prod.sh
+[2025-03-21 07:09:53] If you encounter any issues, check build_log.txt for details

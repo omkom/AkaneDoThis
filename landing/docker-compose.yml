@@ -1,6 +1,8 @@
 # Landing page docker-compose file
+version: '3.8'
 
 services:
+  # Development service with hot-reload
   dev:
     build:
       context: .
@@ -15,17 +17,27 @@ services:
       - NODE_ENV=development
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5173"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
+  # Build service for creating production assets
   build:
     build:
       context: .
       dockerfile: Dockerfile
     command: npm run build
+    volumes:
+      - ./dist:/app/dist
     environment:
       - NODE_ENV=production
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
 
+  # Production service to serve static files
   serve:
     build:
       context: .
@@ -37,3 +49,11 @@ services:
       - NODE_ENV=production
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    volumes:
+      - ./dist:/app/dist:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

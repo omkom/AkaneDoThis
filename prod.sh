@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Improved production startup script with error handling
+# Production startup script with enhanced error handling
 LOGFILE="prod_log.txt"
 
 # Function to log messages
@@ -8,14 +8,49 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a $LOGFILE
 }
 
+# Function to check container status
+check_container() {
+  local service=$1
+  local retries=$2
+  local delay=$3
+  local attempt=1
+  
+  while [ $attempt -le $retries ]; do
+    if docker compose ps | grep -q "$service.*Up"; then
+      return 0
+    fi
+    log "Waiting for $service to start (attempt $attempt/$retries)..."
+    sleep $delay
+    attempt=$((attempt+1))
+  done
+  
+  log "ERROR: $service container failed to start!"
+  docker compose logs $service | tail -n 20 | tee -a $LOGFILE
+  return 1
+}
+
 # Clear previous log
 echo "" > $LOGFILE
-
 log "Starting production environment..."
 
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+  log "WARNING: .env file not found. Creating a template .env file..."
+  cat << EOF > .env
+# Twitch API credentials
+TWITCH_CLIENT_ID=your_client_id_here
+TWITCH_CLIENT_SECRET=your_client_secret_here
+
+# Environment settings
+NODE_ENV=production
+EOF
+  log "Created .env file. Please edit it with your actual credentials."
+  log "Continuing with startup, but services might not function correctly without proper credentials."
+fi
+
 # Check if the dist directory exists before starting
-if [ ! -d "./landing/dist" ]; then
-  log "ERROR: The 'landing/dist' directory does not exist!"
+if [ ! -d "./landing/dist" ] || [ ! "$(ls -A ./landing/dist)" ]; then
+  log "ERROR: The 'landing/dist' directory does not exist or is empty!"
   log "You need to run './build.sh' first to build the application."
   exit 1
 fi
@@ -37,39 +72,22 @@ docker compose up -d
 
 # Verify services started correctly
 log "Verifying services..."
-sleep 5 # Give containers time to start
+sleep 5 # Initial delay to allow containers to initialize
 
-# Check if services are running
-if ! docker compose ps | grep -q "nginx.*Up"; then
-  log "ERROR: Nginx container failed to start!"
-  log "Container logs:"
-  docker compose logs nginx | tail -n 20 | tee -a $LOGFILE
-  exit 1
-fi
-
-if ! docker compose ps | grep -q "landing.*Up"; then
-  log "ERROR: Landing page container failed to start!"
-  log "Container logs:"
-  docker compose logs landing | tail -n 20 | tee -a $LOGFILE
-  exit 1
-fi
-
-if ! docker compose ps | grep -q "n8n.*Up"; then
-  log "WARNING: n8n container failed to start. Some functionality may be limited."
-  log "Container logs:"
-  docker compose logs n8n | tail -n 20 | tee -a $LOGFILE
-fi
+# Check core services
+check_container "nginx" 5 5 || log "WARNING: Proceeding anyway, but the application might not be accessible"
+check_container "landing" 5 5 || log "WARNING: Proceeding anyway, but the landing page might not be available"
+check_container "n8n" 5 5 || log "WARNING: n8n container failed to start. Automation services will not be available."
 
 # Check if the application is accessible
 log "Checking application accessibility..."
-if ! curl -s http://localhost/ > /dev/null; then
-  log "WARNING: Application doesn't seem to be responding at http://localhost/"
-  log "This could be due to the application still starting up, or there may be configuration issues."
+if curl -s -o /dev/null -w "%{http_code}" http://localhost/ | grep -q "200\|301\|302"; then
+  log "✅ Application is accessible at http://localhost/"
+else
+  log "⚠️ Application doesn't seem to be responding correctly at http://localhost/"
   log "Check the container logs for more details:"
   log "  docker compose logs nginx"
   log "  docker compose logs landing"
-else
-  log "Application is responding at http://localhost/"
 fi
 
 log "Production environment started."

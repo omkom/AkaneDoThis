@@ -6,7 +6,7 @@ A comprehensive production environment featuring n8n automation, a Vite-based la
 
 ```
 .
-├── docker-compose.yml        # Main compose file
+├── docker compose.yml        # Main compose file
 ├── README.md                 # This documentation
 ├── dev.sh                    # Development mode script
 ├── build.sh                  # Build script
@@ -17,11 +17,11 @@ A comprehensive production environment featuring n8n automation, a Vite-based la
 │       ├── akane.production.crt
 │       └── akane.production.key
 ├── landing/                  # Landing page (Vite)
-│   ├── docker-compose.yml    # Landing page services
+│   ├── docker compose.yml    # Landing page services
 │   ├── Dockerfile            # Node.js container setup
 │   └── ...                   # Your Vite project files
 └── wp_start/                 # WordPress
-    └── docker-compose.yml    # WordPress & MySQL services
+    └── docker compose.yml    # WordPress & MySQL services
 ```
 
 ## 🚀 Getting Started
@@ -195,7 +195,7 @@ SEO features include:
 ### Common Issues
 
 1. **Port Conflicts**:
-   - If port 4173 is already in use, modify the port mapping in `landing/docker-compose.yml`
+   - If port 4173 is already in use, modify the port mapping in `landing/docker compose.yml`
    - For other port conflicts, adjust the respective service's port mapping
 
 2. **SSL Certificate Problems**:
@@ -212,7 +212,7 @@ SEO features include:
 
 5. **WordPress Database Connection**:
    - The database initializes on first startup
-   - Check logs with `docker-compose logs db`
+   - Check logs with `docker compose logs db`
 
 ### Logs
 
@@ -220,12 +220,12 @@ Access service logs:
 
 ```bash
 # All services
-docker-compose logs
+docker compose logs
 
 # Specific service
-docker-compose logs nginx
-docker-compose logs n8n
-docker-compose logs wordpress
+docker compose logs nginx
+docker compose logs n8n
+docker compose logs wordpress
 ```
 
 ## 🔄 Maintenance
@@ -235,8 +235,8 @@ docker-compose logs wordpress
 Update individual components:
 
 ```bash
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 ```
 
 ### Backups
@@ -245,7 +245,7 @@ Backup volumes and configurations:
 
 ```bash
 # WordPress database
-docker-compose exec db /usr/bin/mysqldump -u root -p wordpress > backup.sql
+docker compose exec db /usr/bin/mysqldump -u root -p wordpress > backup.sql
 
 # n8n data
 docker run --rm -v n8n_data:/source -v $(pwd):/backup alpine tar -czf /backup/n8n-backup.tar.gz -C /source .

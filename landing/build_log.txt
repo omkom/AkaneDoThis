@@ -5,3 +5,38 @@
 [2025-03-21 06:26:13] Running Docker Compose build...
 [2025-03-21 06:26:16] Build completed successfully.
 [2025-03-21 06:26:16] Build output files:
+[2025-03-21 06:31:47] Running Docker Compose build...
+[2025-03-21 06:31:47] ERROR: Build process failed. Check the log for details.
+[2025-03-21 06:31:47] Hint: Common issues include:
+[2025-03-21 06:31:47]   - Missing node modules or TypeScript errors
+[2025-03-21 06:31:47]   - Docker networking issues
+[2025-03-21 06:31:47]   - Insufficient permissions
+[2025-03-21 06:31:47] Run 'docker compose logs build' for more details
+[2025-03-21 06:36:33] Cleaning existing dist directory
+[2025-03-21 06:36:33] Running Docker Compose build...
+[2025-03-21 06:36:33] ERROR: Build process failed. Check the log for details.
+[2025-03-21 06:36:33] Hint: Common issues include:
+[2025-03-21 06:36:33]   - Missing node modules or TypeScript errors
+[2025-03-21 06:36:33]   - Docker networking issues
+[2025-03-21 06:36:33]   - Environment variables not properly set
+[2025-03-21 06:37:54] Running Docker Compose build...
+[2025-03-21 06:37:55] ERROR: Build process failed. Check the log for details.
+[2025-03-21 06:37:55] Hint: Common issues include:
+[2025-03-21 06:37:55]   - Missing node modules or TypeScript errors
+[2025-03-21 06:37:55]   - Docker networking issues
+[2025-03-21 06:37:55]   - Environment variables not properly set
+[2025-03-21 06:52:14] Running Docker Compose build...
+[2025-03-21 06:52:15] ERROR: Build process failed. Check the log for details.
+[2025-03-21 06:52:15] Hint: Common issues include:
+[2025-03-21 06:52:15]   - Missing node modules or TypeScript errors
+[2025-03-21 06:52:15]   - Docker networking issues
+[2025-03-21 06:52:15]   - Environment variables not properly set
+[2025-03-21 06:54:55] Running Docker Compose build...
+[2025-03-21 06:55:02] Build output files:
+[2025-03-21 06:55:02] Build completed successfully with        4 files.
+[2025-03-21 06:57:51] Verifying dependencies...
+[2025-03-21 06:58:06] Building the application...
+[2025-03-21 06:58:11] Build output files:
+[2025-03-21 07:09:25] Verifying dependencies...
+[2025-03-21 07:09:47] Building the application...
+[2025-03-21 07:09:53] Build output files:

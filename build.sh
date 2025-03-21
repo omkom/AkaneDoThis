@@ -8,44 +8,65 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a $LOGFILE
 }
 
+# Function to check for errors
+check_error() {
+  if [ $? -ne 0 ]; then
+    log "ERROR: $1"
+    exit 1
+  fi
+}
+
 # Clear previous log
 echo "" > $LOGFILE
 log "Starting build process..."
 
-# Run the build process for the landing page with better error capturing
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+  log "WARNING: .env file not found. Creating a template .env file..."
+  cat << EOF > .env
+# Twitch API credentials
+TWITCH_CLIENT_ID=your_client_id_here
+TWITCH_CLIENT_SECRET=your_client_secret_here
+
+# Environment settings
+NODE_ENV=production
+EOF
+  log "Created .env file. Please edit it with your actual credentials before deploying to production."
+fi
+
+# Ensure the dist directory exists in landing
+mkdir -p landing/dist
+check_error "Failed to create dist directory"
+
+# Run the build process for the landing page
 cd landing || {
   log "ERROR: Could not change to landing directory"
   exit 1
 }
 
-log "Running Docker Compose build..."
-docker compose run --rm build 2>&1 | tee -a ../$LOGFILE
+# Ensure we have the latest dependencies
+log "Verifying dependencies..."
+docker compose run --rm build npm ci
+check_error "Failed to install dependencies"
 
-# Check if the build was successful
-if [ ${PIPESTATUS[0]} -ne 0 ]; then
-  log "ERROR: Build process failed. Check the log for details."
-  log "Hint: Common issues include:"
-  log "  - Missing node modules or TypeScript errors"
-  log "  - Docker networking issues"
-  log "  - Insufficient permissions"
-  log "Run 'docker compose logs build' for more details"
+# Build the application
+log "Building the application..."
+docker compose run --rm build
+check_error "Build process failed"
+
+# Verify that the build output exists
+if [ ! "$(ls -A dist)" ]; then
+  log "ERROR: Build completed but dist directory is empty!"
+  log "Check the Docker logs for more details: docker compose logs build"
   exit 1
-else
-  log "Build completed successfully."
-  
-  # Verify that the build output directory exists
-  if [ ! -d "dist" ]; then
-    log "WARNING: Build completed but 'dist' directory is missing!"
-    log "This suggests that the build process did not create output files."
-    exit 1
-  fi
-  
-  # List what was built
-  log "Build output files:"
-  ls -la dist | tee -a ../$LOGFILE
 fi
+
+# List what was built
+log "Build output files:"
+ls -la dist | tee -a ../$LOGFILE
 
 cd ..
 
-log "Build completed. You can now start the production environment with ./prod.sh"
+log "Build completed successfully."
+log "You can now start the production environment with ./prod.sh"
 log "If you encounter any issues, check $LOGFILE for details"

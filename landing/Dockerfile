@@ -13,5 +13,5 @@ COPY . .
 
 EXPOSE 3000
 
-# The default command will be overridden by docker-compose
+# The default command will be overridden by docker compose
 CMD ["npm", "run", "dev"]

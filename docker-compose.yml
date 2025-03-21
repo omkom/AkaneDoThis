@@ -1,10 +1,11 @@
 # Main docker-compose file that orchestrates all services
+version: '3.8'
 
 services:
-  # n8n service
+  # n8n automation service
   n8n:
     image: n8nio/n8n:latest
-    restart: always
+    restart: unless-stopped
     ports:
       - "5678:5678"
     environment:
@@ -19,43 +20,65 @@ services:
       - n8n_data:/home/node/.n8n
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      #start_period:: 20s
 
   # Nginx service to route traffic
   nginx:
     image: nginx:alpine
+    restart: unless-stopped
     ports:
       - "80:80"
-      #- "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./landing/dist:/usr/share/nginx/html:ro # Mount dist directory as static files
-      - ./nginx/error:/usr/share/nginx/html/error:ro # Optional error pages
+      #- ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./landing/dist:/usr/share/nginx/html:ro
+      - ./nginx/error:/usr/share/nginx/html/error:ro
     depends_on:
       - n8n
       - landing
-    #  - wordpress
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Landing page - use the serve service by default for production
+  # Landing page service for production
   landing:
     build:
       context: ./landing
       dockerfile: Dockerfile
+    restart: unless-stopped
     command: npx serve -s dist
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    volumes:
+      - ./landing/dist:/app/dist:ro
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
-  # WordPress service (using external compose)
-  #wordpress:
-  #  extends:
-  #    file: ./wp_start/docker-compose.yml
-  #    service: wordpress
-  #  networks:
-  #    - app-network
+  # WordPress service - commented out for now
+  # wordpress:
+  #   extends:
+  #     file: ./wp_start/docker-compose.yml
+  #     service: wordpress
+  #   networks:
+  #     - app-network
 
 networks:
   app-network:
@@ -63,3 +86,4 @@ networks:
 
 volumes:
   n8n_data:
+    driver: local
