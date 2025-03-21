@@ -19,6 +19,7 @@ sketch
 
 ### DA ###
 /da
+.env
 
 ### Temp WP ###
 /wp_*

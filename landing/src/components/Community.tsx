@@ -11,7 +11,7 @@ export default function Community() {
             <div className="neo-card neo-card-blue card-3d p-6">
               <h3 className="neon-text cyan text-xl mb-4 font-cyber">Serveur Discord</h3>
               <p className="mb-4 font-body">Rejoignez notre communauté florissante de plus de 1 000 membres. Partagez vos créations, discutez des derniers jeux et soyez notifié quand je passe en direct.</p>
-              <a href="#" className="inline-block px-6 py-2 border-2 border-electric-blue text-white hover:bg-electric-blue/20 transition duration-300 font-cyber">
+              <a href="https://discord.gg/H67aXsYNa7" className="inline-block px-6 py-2 border-2 border-electric-blue text-white hover:bg-electric-blue/20 transition duration-300 font-cyber">
                 Rejoindre Discord
               </a>
             </div>
@@ -31,7 +31,7 @@ export default function Community() {
               </a>
             </div>
           </div>
-          
+          c
           <div className="card-3d-container">
             <div className="neo-card neo-card-pink card-3d p-6">
               <h3 className="neon-text pink text-xl mb-4 font-cyber">Réseaux Sociaux</h3>
