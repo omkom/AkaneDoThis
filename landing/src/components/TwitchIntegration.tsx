@@ -1,72 +1,82 @@
 import React, { useState, useEffect } from 'react';
 import { FaTwitch, FaExternalLinkAlt } from 'react-icons/fa';
 
-/**
- * @typedef {Object} TwitchUserData
- * @property {string} id
- * @property {string} login
- * @property {string} display_name
- * @property {string} profile_image_url
- * @property {number} view_count
- * @property {string} created_at
- */
+// Define TypeScript interfaces for better type safety
+interface TwitchUserData {
+  id: string;
+  login: string;
+  display_name: string;
+  profile_image_url: string;
+  view_count: number;
+  created_at: string;
+}
 
-/**
- * @typedef {Object} TwitchAuthData
- * @property {string} token
- * @property {TwitchUserData} userData
- */
+interface TwitchAuthData {
+  token: string;
+  userData: TwitchUserData;
+}
 
-/**
- * @typedef {Object} TwitchStream
- * @property {string} id
- * @property {string} user_id
- * @property {string} user_name
- * @property {string} game_name
- * @property {string} title
- * @property {number} viewer_count
- * @property {string} started_at
- * @property {string} thumbnail_url
- * @property {boolean} is_mature
- */
+interface TwitchStream {
+  id: string;
+  user_id: string;
+  user_name: string;
+  game_name: string;
+  title: string;
+  viewer_count: number;
+  started_at: string;
+  thumbnail_url: string;
+  is_mature: boolean;
+}
 
-/**
- * @typedef {Object} TwitchScheduleSegment
- * @property {string} id
- * @property {string} start_time
- * @property {string} end_time
- * @property {string} title
- * @property {{id: string, name: string}|undefined} category
- * @property {string} broadcaster_id
- * @property {string} broadcaster_name
- */
+interface TwitchScheduleSegment {
+  id: string;
+  start_time: string;
+  end_time: string;
+  title: string;
+  category?: {
+    id: string;
+    name: string;
+  };
+  broadcaster_id: string;
+  broadcaster_name: string;
+}
 
-/**
- * @typedef {Object} TwitchEvent
- * @property {'live'|'scheduled'} type
- * @property {string} id
- * @property {string} broadcaster_id
- * @property {string} broadcaster_name
- * @property {string} title
- * @property {string} [game_name]
- * @property {string} [thumbnail_url]
- * @property {number} [viewer_count]
- * @property {string} [started_at]
- * @property {string} [category]
- * @property {string} [start_time]
- * @property {string} [end_time]
- * @property {string} [profile_image_url]
- */
+interface TwitchEvent {
+  type: 'live' | 'scheduled';
+  id: string;
+  broadcaster_id: string;
+  broadcaster_name: string;
+  title: string;
+  game_name?: string;
+  thumbnail_url?: string;
+  viewer_count?: number;
+  started_at?: string;
+  category?: string;
+  start_time?: string;
+  end_time?: string;
+  profile_image_url?: string;
+}
 
-const TwitchIntegration = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [authData, setAuthData] = useState(null);
-  const [events, setEvents] = useState([]);
+// Augment the Window interface for TypeScript
+declare global {
+  interface Window {
+    loginWithTwitch?: (scopes: string[]) => Promise<TwitchAuthData>;
+    validateTwitchToken?: (token: string) => Promise<boolean>;
+    logoutFromTwitch?: (token?: string) => Promise<boolean>;
+    getTwitchAuth?: () => TwitchAuthData | null;
+    TWITCH_CLIENT_ID?: string;
+  }
+}
+
+const TwitchIntegration: React.FC = () => {
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [authData, setAuthData] = useState<TwitchAuthData | null>(null);
+  const [events, setEvents] = useState<TwitchEvent[]>([]);
 
   // Check for existing authentication on component mount
   useEffect(() => {
-    // Check if the window object and Twitch auth functions are available
+    // Safely access window object in a way that works with SSR
     if (typeof window !== 'undefined' && window.getTwitchAuth) {
       const storedAuth = window.getTwitchAuth();
       if (storedAuth) {
@@ -114,7 +124,7 @@ const TwitchIntegration = () => {
   };
 
   // Function to fetch Twitch events (live streams and scheduled events)
-  const fetchEvents = async (token, userId) => {
+  const fetchEvents = async (token: string, userId: string) => {
     setIsLoading(true);
     
     try {
@@ -128,7 +138,7 @@ const TwitchIntegration = () => {
       const streamsData = await streamsResponse.json();
       
       // Transform stream data
-      const liveEvents = (streamsData.data || []).map((stream) => ({
+      const liveEvents: TwitchEvent[] = (streamsData.data || []).map((stream: TwitchStream) => ({
         type: 'live',
         id: stream.id,
         broadcaster_id: stream.user_id,
@@ -155,7 +165,7 @@ const TwitchIntegration = () => {
           const scheduleData = await scheduleResponse.json();
           
           // Transform schedule data
-          const scheduledEvents = (scheduleData.segments || []).map((segment) => ({
+          const scheduledEvents: TwitchEvent[] = (scheduleData.segments || []).map((segment: TwitchScheduleSegment) => ({
             type: 'scheduled',
             id: segment.id,
             broadcaster_id: segment.broadcaster_id,
@@ -189,13 +199,13 @@ const TwitchIntegration = () => {
   };
 
   // Function to format date/time
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   // Format thumbnail URL to get a reasonable size
-  const formatThumbnailUrl = (url) => {
+  const formatThumbnailUrl = (url: string) => {
     return url.replace('{width}', '320').replace('{height}', '180');
   };
 
@@ -329,16 +339,5 @@ const TwitchIntegration = () => {
     </div>
   );
 };
-
-// Add required global typings for IDE support
-// This doesn't affect runtime, just provides type hints for development
-/**
- * @typedef {Object} Window
- * @property {function(string[]): Promise<any>} loginWithTwitch
- * @property {function(string): Promise<boolean>} validateTwitchToken
- * @property {function(string?): Promise<boolean>} logoutFromTwitch
- * @property {function(): (TwitchAuthData|null)} getTwitchAuth
- * @property {string} [TWITCH_CLIENT_ID]
- */
 
 export default TwitchIntegration;
