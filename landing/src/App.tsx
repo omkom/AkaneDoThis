@@ -7,9 +7,9 @@ import Videos from './components/Videos';
 import Community from './components/Community';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
-import TwitchIntegration from './components/TwitchIntegration';
+import TwitchIntegration from './components/Twitch/TwitchIntegration';
 import { trackPageView, trackFormSubmit } from './utils/analytics';
-import TwitchApiLogger from './components/TwitchApiLogger';
+import TwitchApiLogger from './components/Twitch/TwitchApiLogger';
 import { setupEnvironment } from './utils/env-config';
 
 // Import assets

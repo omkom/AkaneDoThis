@@ -1,6 +1,5 @@
-// src/components/TwitchScriptLoader.tsx
 import { useEffect, useState } from 'react';
-import { getEnv, setupEnvironment } from '../utils/env-config';
+import { getEnv, setupEnvironment } from '../../utils/env-config';
 import React from 'react';
 
 interface TwitchScriptLoaderProps {
@@ -38,6 +37,7 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
             window.TWITCH_CLIENT_ID = getEnv('TWITCH_CLIENT_ID', '');
             console.log('Set TWITCH_CLIENT_ID from env:', window.TWITCH_CLIENT_ID);
           }
+          const twitchClientId: string | undefined = window.TWITCH_CLIENT_ID ?? undefined;
           setScriptLoaded(true);
         };
         script.onerror = () => {

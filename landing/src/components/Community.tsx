@@ -1,8 +1,17 @@
 import React from 'react';
 
+const backgroundStyle = {
+  backgroundImage: "url('/chanel-background-large.png')",
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+  backgroundAttachment: 'fixed',
+  position: 'relative',
+};
+
 export default function Community() {
   return (
-    <section id="community" className="py-20">
+    <section id="community" className="py-20" style={backgroundStyle}>
       <div className="container mx-auto px-4">
         <h2 className="neon-text pink text-center text-4xl mb-12 font-cyber">Rejoindre La Vibe de ma Communauté</h2>
         

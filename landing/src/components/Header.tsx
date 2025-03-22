@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaTwitch } from 'react-icons/fa';
 import { trackClick } from '../utils/analytics';
-import TwitchProfileBadge from './TwitchProfileBadge';
-import TwitchScriptLoader from './TwitchScriptLoader';
+import TwitchProfileBadge from './Twitch/TwitchProfileBadge';
+import TwitchScriptLoader from './Twitch/TwitchScriptLoader';
 import React from 'react';
 
 export default function Header() {

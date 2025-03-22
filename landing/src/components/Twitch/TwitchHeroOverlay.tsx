@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaTwitch, FaHeart, FaStar, FaUsers, FaPlay, FaBell } from 'react-icons/fa';
-import { trackClick } from '../utils/analytics';
+import { trackClick } from '../../utils/analytics';
 
 // Define TypeScript interfaces
 interface TwitchStats {

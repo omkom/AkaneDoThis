@@ -16,7 +16,7 @@ interface LogEntry {
 const TwitchApiLogger: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isVisible, setIsVisible] = useState(process.env.NODE_ENV === 'development');
+  const [isVisible] = useState(process.env.NODE_ENV === 'development');
   const [isMinimized, setIsMinimized] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
@@ -29,7 +29,11 @@ const TwitchApiLogger: React.FC = () => {
 
     // Override fetch
     window.fetch = async (input, init) => {
-      const url = typeof input === 'string' ? input : input.url;
+      const url = typeof input === 'string' 
+        ? input 
+        : input instanceof URL 
+          ? input.href 
+          : input.url;
       
       // Only log Twitch API calls
       if (!url.includes('twitch.tv') && !url.includes('/api/twitch')) {
@@ -61,7 +65,8 @@ const TwitchApiLogger: React.FC = () => {
         
         try {
           responseData = await clonedResponse.json();
-        } catch (e) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (error) {
           responseData = { note: 'Unable to parse response as JSON' };
         }
         

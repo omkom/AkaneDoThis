@@ -1,7 +1,6 @@
-// src/components/TwitchProfileBadge.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaTwitch, FaSignOutAlt, FaCog } from 'react-icons/fa';
-import { trackClick } from '../utils/analytics';
+import { trackClick } from '../../utils/analytics';
 
 interface TwitchUserData {
   id: string;
@@ -33,6 +32,8 @@ const TwitchProfileBadge: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [authData, setAuthData] = useState<TwitchAuthData | null>(null);
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLButtonElement>(null);
 
   // Check for existing authentication on component mount
   useEffect(() => {
@@ -59,6 +60,25 @@ const TwitchProfileBadge: React.FC = () => {
     };
     
     checkAuth();
+  }, []);
+
+  // Add click outside listener to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current && 
+        profileRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   // Function to handle login
@@ -115,6 +135,7 @@ const TwitchProfileBadge: React.FC = () => {
       {authData ? (
         <div className="flex items-center">
           <button 
+            ref={profileRef}
             onClick={toggleDropdown}
             className="flex items-center space-x-2 p-1.5 rounded hover:bg-black/30 transition"
           >
@@ -130,44 +151,60 @@ const TwitchProfileBadge: React.FC = () => {
           </button>
           
           {showDropdown && (
-            <div className="absolute top-full right-0 mt-1 w-64 neo-card neo-card-purple card-3d p-0 z-50 dropdown-menu">
-              <div className="bg-bright-purple/30 backdrop-blur-md py-3 px-4 text-center border-b border-white/10">
-                <p className="text-sm font-medium font-cyber">{authData.userData.display_name}</p>
-                <p className="text-xs text-white/70">Connected with Twitch</p>
+            <>
+              {/* Mobile full-screen overlay */}
+              <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-40" onClick={() => setShowDropdown(false)} />
+              
+              {/* Dropdown content */}
+              <div 
+                ref={dropdownRef}
+                className={`
+                  fixed md:absolute 
+                  md:top-full md:right-0 md:mt-1 md:w-64
+                  inset-x-0 bottom-0 md:bottom-auto 
+                  max-h-[66vh] md:max-h-none 
+                  neo-card neo-card-purple card-3d p-0 z-50 dropdown-menu
+                  ${window.innerWidth < 768 ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}
+                `}
+              >
+                <div className="bg-bright-purple/30 backdrop-blur-md py-3 px-4 text-center border-b border-white/10">
+                  <p className="text-sm font-medium font-cyber">{authData.userData.display_name}</p>
+                  <p className="text-xs text-white/70">Connected with Twitch</p>
+                </div>
+                
+                <button 
+                  onClick={() => {
+                    window.location.href = `https://twitch.tv/${authData.userData.login}`;
+                    trackClick('twitch', 'view-profile');
+                  }}
+                  className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left"
+                >
+                  <FaTwitch className="text-bright-purple" />
+                  <span>View Profile</span>
+                </button>
+                
+                <button 
+                  onClick={() => {
+                    window.location.href = "#twitch";
+                    trackClick('twitch', 'manage-follows');
+                    setShowDropdown(false);
+                  }}
+                  className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left"
+                >
+                  <FaCog className="text-gray-300" />
+                  <span>Manage Follows</span>
+                </button>
+                
+                <button 
+                  onClick={handleLogout}
+                  disabled={isLoading}
+                  className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left border-t border-white/10 mt-2"
+                >
+                  <FaSignOutAlt className="text-gray-300" />
+                  <span>{isLoading ? 'Signing out...' : 'Sign Out'}</span>
+                </button>
               </div>
-              
-              <button 
-                onClick={() => {
-                  window.location.href = `https://twitch.tv/${authData.userData.login}`;
-                  trackClick('twitch', 'view-profile');
-                }}
-                className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left"
-              >
-                <FaTwitch className="text-bright-purple" />
-                <span>View Profile</span>
-              </button>
-              
-              <button 
-                onClick={() => {
-                  window.location.href = "#twitch";
-                  trackClick('twitch', 'manage-follows');
-                  setShowDropdown(false);
-                }}
-                className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left"
-              >
-                <FaCog className="text-gray-300" />
-                <span>Manage Follows</span>
-              </button>
-              
-              <button 
-                onClick={handleLogout}
-                disabled={isLoading}
-                className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left border-t border-white/10 mt-2"
-              >
-                <FaSignOutAlt className="text-gray-300" />
-                <span>{isLoading ? 'Signing out...' : 'Sign Out'}</span>
-              </button>
-            </div>
+            </>
           )}
         </div>
       ) : (

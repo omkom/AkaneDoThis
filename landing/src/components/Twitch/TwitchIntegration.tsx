@@ -1,4 +1,3 @@
-// src/components/TwitchIntegration.tsx
 import React, { useState, useEffect } from 'react';
 import { FaTwitch, FaExternalLinkAlt, FaEye, FaHeart, FaRegHeart, FaCalendarAlt } from 'react-icons/fa';
 import TwitchScriptLoader from './TwitchScriptLoader';
