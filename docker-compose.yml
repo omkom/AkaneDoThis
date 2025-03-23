@@ -1,15 +1,32 @@
-version: '3.8'
+# Note: 'version' attribute is obsolete and will be ignored in newer Docker Compose versions
+
+# Define common configurations to avoid repetition
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+
+x-common-environment: &common-env
+  NODE_ENV: production
 
 services:
-  # Nginx reverse proxy
+  # Nginx reverse proxy with optimized settings
   nginx:
     image: nginx:alpine
-    restart: unless-stopped
+    <<: *restart-policy
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
       - dist_data:/usr/share/nginx/html:ro
+      - nginx_cache:/var/cache/nginx
+      - nginx_logs:/var/log/nginx
     depends_on:
       - prod
       - n8n
@@ -22,24 +39,33 @@ services:
       interval: 60s
       timeout: 5s
       retries: 3
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
+    # Add resource limits to prevent resource exhaustion
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
 
-  # n8n workflow automation
+  # n8n workflow automation with optimized configuration
   n8n:
     image: n8nio/n8n:latest
-    restart: unless-stopped
+    <<: *restart-policy
     environment:
-      - N8N_HOST=n8n
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - NODE_ENV=production
-      - WEBHOOK_URL=https://akane.production/n8n/
-      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      <<: *common-env
+      N8N_HOST: n8n
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: https://akane.production/n8n/
+      TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}
+      TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET}
+      # Performance tuning parameters
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_DEFAULT_CONCURRENCY: 5
+      NODE_OPTIONS: "--max-old-space-size=1024"
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
@@ -50,11 +76,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   # Production API and static server
   prod:
@@ -62,14 +92,19 @@ services:
       context: ./landing
       dockerfile: Dockerfile
       target: production
-    restart: unless-stopped
+      args:
+        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+    <<: *restart-policy
     depends_on:
       - build
     environment:
-      - NODE_ENV=production
-      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-      - PORT=3000
+      <<: *common-env
+      TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}
+      TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET}
+      PORT: 3000
+      # Add compression and cache settings
+      ENABLE_COMPRESSION: "true"
+      HTTP_CACHE_CONTROL: "public, max-age=86400"
     volumes:
       - dist_data:/app/dist:ro
     networks:
@@ -80,13 +115,17 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
 
-  # Build service
+  # Build service with mounted volume for artifact storage
   build:
     build:
       context: ./landing
@@ -94,20 +133,25 @@ services:
       target: builder
       args:
         - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+        - NODE_ENV=production
     volumes:
       - dist_data:/app/dist
     environment:
-      - NODE_ENV=production
-      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      <<: *common-env
+      VITE_TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}
+    # Run the build and copy built files to the shared volume
     command: >
       sh -c "
         mkdir -p /app/dist &&
+        npm run build &&
         cp -r dist/* /app/dist/ &&
-        chmod -R 755 /app/dist
+        chmod -R 755 /app/dist &&
+        echo 'Build completed successfully'
       "
     networks:
       - akane-network
 
+# Separate network for application components
 networks:
   akane-network:
     driver: bridge
@@ -116,8 +160,13 @@ networks:
       config:
         - subnet: 172.28.0.0/16
 
+# Persistent volumes for data storage
 volumes:
   n8n_data:
     name: akane_n8n_data
   dist_data:
     name: akane_dist_data
+  nginx_cache:
+    name: akane_nginx_cache
+  nginx_logs:
+    name: akane_nginx_logs
