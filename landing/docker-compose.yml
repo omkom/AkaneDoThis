@@ -42,16 +42,14 @@ services:
       dockerfile: Dockerfile
       target: builder
     volumes:
-      - dist_data:/app/dist
+      - ${SKIP_VOLUME_COPY:-./dist}:/app/dist
     environment:
       - NODE_ENV=production
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - SKIP_VOLUME_COPY=${SKIP_VOLUME_COPY:-}
     command: >
       sh -c "
-        mkdir -p /app/dist &&
         npm run build &&
-        cp -r dist/* /app/dist/ &&
-        chmod -R 755 /app/dist &&
         echo 'Build completed successfully'
       "
 
@@ -78,4 +76,4 @@ services:
 
 volumes:
   dist_data:
-    name: akane_dist_data
+    name: akane_dist_datat

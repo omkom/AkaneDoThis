@@ -1,32 +1,49 @@
 {
   "compilerOptions": {
-    /* Base configuration for all TypeScript files */
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    // Latest ECMAScript features
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "ESNext.AsyncIterable"],
     "module": "ESNext",
-    "skipLibCheck": true,
+    
+    // Module handling
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    
+    // React specific
     "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    
+    // Build optimization
+    "skipLibCheck": true,
+    "noEmit": true,
+    "incremental": true,
+    
+    // Type checking and linting
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
-    "useDefineForClassFields": true,
     
-    /* Path aliases for cleaner imports */
+    // Path aliases for cleaner imports
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@components/*": ["./src/components/*"],
       "@utils/*": ["./src/utils/*"],
-      "@services/*": ["./services/*"]
+      "@services/*": ["./services/*"],
+      "@types/*": ["./src/types/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@assets/*": ["./src/assets/*"],
+      "@context/*": ["./src/context/*"]
     }
   },
   "include": [
@@ -40,7 +57,10 @@
   "exclude": [
     "node_modules",
     "dist",
-    "build"
+    "build",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.stories.tsx"
   ],
   "references": [
     {

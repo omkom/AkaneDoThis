@@ -1,4 +1,3 @@
-# Modern Dockerfile with optimized build process
 FROM node:20-alpine AS base
 
 # Set working directory
