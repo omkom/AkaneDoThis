@@ -1,5 +1,4 @@
 // services/twitch/twitch-types.ts
-// Enhanced type definitions with improved subscription support
 
 /**
  * Authentication data structure
@@ -132,8 +131,9 @@ export interface TwitchAuthData {
     stream: TwitchStream | null;
     channel: TwitchChannel | null;
     followers: TwitchFollowers;
+    vips?: TwitchVIPData[];
     isLive: boolean;
-    subscriberCount: number | null; // Added subscriber count 
+    subscriberCount: number | null;
     stats: {
       followerCount: number;
       viewerCount: number;
@@ -142,6 +142,7 @@ export interface TwitchAuthData {
       startedAt: string | null;
       thumbnailUrl: string | null;
       tags: string[];
+      vipCount?: number;
     };
   }
   
@@ -155,7 +156,7 @@ export interface TwitchAuthData {
     token?: string | null;
     userToken?: string | null;
     requiresUserToken?: boolean;
-    cacheKey?: string | null; // Added cache key support
+    cacheKey?: string | null;
   }
   
   /**
@@ -184,34 +185,32 @@ export interface TwitchAuthData {
       cursor?: string;
     };
   }
-
-// Add these interfaces to the existing services/twitch/twitch-types.ts file
-
-/**
- * VIP data structure
- */
-export interface TwitchVIPData {
+  
+  /**
+   * VIP data structure
+   */
+  export interface TwitchVIPData {
     user_id: string;
     user_name: string;
     user_login: string;
   }
   
-  // Update TwitchChannelData to include VIPs
-  export interface TwitchChannelData {
-    broadcaster: TwitchUserData;
-    stream: TwitchStream | null;
-    channel: TwitchChannel | null;
-    followers: TwitchFollowers;
-    vips?: TwitchVIPData[];
-    isLive: boolean;
-    stats: {
-      followerCount: number;
-      viewerCount: number;
-      streamTitle: string;
-      game: string;
-      startedAt: string | null;
-      thumbnailUrl: string | null;
-      tags: string[];
-      vipCount?: number;
-    };
+  /**
+   * Twitch event structure (unified format for live and scheduled events)
+   */
+  export interface TwitchEvent {
+    type: 'live' | 'scheduled';
+    id: string;
+    broadcaster_id: string;
+    broadcaster_name: string;
+    title: string;
+    // Live stream specific
+    game_name?: string;
+    thumbnail_url?: string;
+    viewer_count?: number;
+    started_at?: string;
+    // Scheduled stream specific
+    category?: string;
+    start_time?: string;
+    end_time?: string;
   }

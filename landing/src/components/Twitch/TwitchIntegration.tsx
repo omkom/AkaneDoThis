@@ -1,11 +1,13 @@
+// landing/src/components/Twitch/TwitchIntegration.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaTwitch, FaExternalLinkAlt, FaEye, FaHeart, FaRegHeart, FaCalendarAlt } from 'react-icons/fa';
+import { FaTwitch, FaExternalLinkAlt, FaEye, FaHeart, FaRegHeart, FaCalendarAlt, FaCrown, FaUser } from 'react-icons/fa';
 import { trackClick } from '../../utils/analytics';
 import { 
   TwitchUserData, 
   TwitchStream, 
   TwitchScheduleSegment, 
-  TwitchEvent 
+  TwitchEvent,
+  TwitchVIPData
 } from '../../../services/twitch/twitch-types';
 import {
   getBroadcasterByLogin,
@@ -13,15 +15,17 @@ import {
   followChannel,
   unfollowChannel,
   getStreamInfo,
-  getChannelSchedule
+  getChannelSchedule,
+  getChannelVIPs
 } from '../../../services/twitch/twitch-api';
 import {
   formatNumber,
   formatThumbnailUrl,
   getTwitchChannelUrl
 } from '../../../services/twitch/twitch-client';
-import TwitchVIPsList from './TwitchVIPsList';
-import { FaCrown } from 'react-icons/fa';
+
+// Minimum time between API calls to prevent rate limiting
+const MIN_API_INTERVAL = 10000;
 
 const TwitchIntegration: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -29,36 +33,49 @@ const TwitchIntegration: React.FC = () => {
   const [events, setEvents] = useState<TwitchEvent[]>([]);
   const [isFollowing, setIsFollowing] = useState<Record<string, boolean>>({});
   const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
+  const [vips, setVips] = useState<TwitchVIPData[]>([]);
+  const [selectedBroadcaster, setSelectedBroadcaster] = useState<{id: string, name: string}>({
+    id: '258e0f7f-cdd0-4ab8-89f2-82d97993f474', // Default AkaneDoThis ID
+    name: 'AkaneDoThis'
+  });
+  const [lastApiCall, setLastApiCall] = useState<number>(0);
 
-  // Global authentication status listener
+  // Throttled API call function to prevent rate limiting
+  const throttledApiCall = useCallback(async (apiCall: () => Promise<void>) => {
+    const now = Date.now();
+    if (now - lastApiCall > MIN_API_INTERVAL) {
+      setLastApiCall(now);
+      await apiCall();
+    } else {
+      console.log("API call throttled - too soon since last call");
+    }
+  }, [lastApiCall]);
+
+  // Check auth on mount and set up periodic checks
   useEffect(() => {
-    // Check auth on mount
     checkAuthStatus();
     
-    // Set up auth check interval
-    const authCheckInterval = setInterval(checkAuthStatus, 10000);
-    
-    // Clean up interval on unmount
+    const authCheckInterval = setInterval(checkAuthStatus, 30000);
     return () => clearInterval(authCheckInterval);
   }, []);
   
-  // Centralized auth check function
+  // Centralized auth check and data fetch
   const checkAuthStatus = useCallback(async () => {
     try {
-      if (typeof window === 'undefined' || !window.getTwitchAuth) return;
+      if (typeof window === 'undefined' || !window.getTwitchAuth) return false;
       
       const authData = window.getTwitchAuth();
       
       if (authData) {
-        // Validate token before using
+        // Validate token
         const isValid = await window.validateTwitchToken?.(authData.token);
         
         if (isValid) {
-          // Token is valid, fetch events
-          fetchEvents(authData.token, authData.userData.id);
+          throttledApiCall(() => fetchEvents(authData.token, authData.userData.id));
+          throttledApiCall(() => fetchVIPs(authData.token, selectedBroadcaster.id));
           return true;
         } else {
-          // Token is invalid, log out
+          // Invalid token - log out
           await window.logoutFromTwitch?.();
           setEvents([]);
           setIsFollowing({});
@@ -66,7 +83,6 @@ const TwitchIntegration: React.FC = () => {
           return false;
         }
       } else {
-        // No auth data
         return false;
       }
     } catch (err) {
@@ -74,7 +90,7 @@ const TwitchIntegration: React.FC = () => {
       setError("Failed to validate your Twitch session.");
       return false;
     }
-  }, []);
+  }, [throttledApiCall, selectedBroadcaster.id]);
 
   // Function to handle login
   const handleLogin = async () => {
@@ -86,11 +102,13 @@ const TwitchIntegration: React.FC = () => {
         const auth = await window.loginWithTwitch([
           'user:read:follows',
           'user:read:subscriptions',
-          'user:edit:follows'
+          'user:edit:follows',
+          'channel:read:vips'
         ]);
         
         if (auth && auth.token && auth.userData) {
           fetchEvents(auth.token, auth.userData.id);
+          fetchVIPs(auth.token, selectedBroadcaster.id);
           trackClick('twitch', 'login');
         } else {
           throw new Error('Authentication failed');
@@ -115,6 +133,7 @@ const TwitchIntegration: React.FC = () => {
         await window.logoutFromTwitch();
         setEvents([]);
         setIsFollowing({});
+        setVips([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during logout');
@@ -123,7 +142,7 @@ const TwitchIntegration: React.FC = () => {
     }
   };
 
-  // Function to fetch Twitch events (live streams and scheduled events)
+  // Fetch Twitch events (live streams and scheduled events)
   const fetchEvents = useCallback(async (token: string, userId: string) => {
     setIsLoading(true);
     setError(null);
@@ -193,10 +212,10 @@ const TwitchIntegration: React.FC = () => {
       
       // Try to fetch scheduled events
       try {
-        // For each broadcaster, get their schedule
+        // For each broadcaster, get their schedule (limit to 5 to prevent rate limiting)
         const scheduledEvents: TwitchEvent[] = [];
         
-        for (const broadcasterId of broadcasterIds.slice(0, 5)) { // Limit to 5 to prevent rate limiting
+        for (const broadcasterId of broadcasterIds.slice(0, 5)) {
           try {
             const scheduleResponse = await fetch(`https://api.twitch.tv/helix/schedule?broadcaster_id=${broadcasterId}`, {
               headers: {
@@ -258,7 +277,25 @@ const TwitchIntegration: React.FC = () => {
     }
   }, []);
 
-  // Function to toggle follow status for a channel
+  // Fetch VIPs for a given broadcaster
+  const fetchVIPs = useCallback(async (token: string, broadcasterId: string) => {
+    if (!token || !broadcasterId) return;
+    
+    try {
+      const vipsResponse = await getChannelVIPs(broadcasterId, {}, token);
+      
+      if (vipsResponse && vipsResponse.data) {
+        setVips(vipsResponse.data);
+      } else {
+        setVips([]);
+      }
+    } catch (err) {
+      console.error('Error fetching VIPs:', err);
+      setVips([]);
+    }
+  }, []);
+
+  // Toggle follow status for a channel
   const toggleFollow = async (broadcasterId: string, broadcasterName: string, currentlyFollowing: boolean) => {
     // Get current auth data
     if (typeof window === 'undefined' || !window.getTwitchAuth) return;
@@ -309,7 +346,7 @@ const TwitchIntegration: React.FC = () => {
     }
   };
 
-  // Function to refresh events
+  // Refresh events
   const refreshEvents = async () => {
     const authenticated = await checkAuthStatus();
     if (!authenticated) {
@@ -317,7 +354,7 @@ const TwitchIntegration: React.FC = () => {
     }
   };
 
-  // Function to format date/time
+  // Format date/time
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -341,6 +378,16 @@ const TwitchIntegration: React.FC = () => {
       return `Starts in ${diffHours}h ${diffMinutes}m`;
     } else {
       return `Starts in ${diffMinutes} minutes`;
+    }
+  };
+
+  // View a new broadcaster's VIPs
+  const viewChannelVIPs = (broadcasterId: string, broadcasterName: string) => {
+    setSelectedBroadcaster({id: broadcasterId, name: broadcasterName});
+    
+    const authData = typeof window !== 'undefined' && window.getTwitchAuth ? window.getTwitchAuth() : null;
+    if (authData?.token) {
+      fetchVIPs(authData.token, broadcasterId);
     }
   };
 
@@ -410,9 +457,9 @@ const TwitchIntegration: React.FC = () => {
                     .filter(event => event.type === 'live')
                     .map(event => (
                       <div key={event.id} className="neo-card neo-card-pink p-4 mb-4">
-                        <div className="flex items-start">
+                        <div className="flex flex-col md:flex-row items-start">
                           {event.thumbnail_url && (
-                            <div className="w-32 h-18 mr-4 overflow-hidden">
+                            <div className="w-full md:w-32 h-18 mr-4 overflow-hidden mb-4 md:mb-0">
                               <img 
                                 src={formatThumbnailUrl(event.thumbnail_url, 320, 180)} 
                                 alt={event.title}
@@ -437,7 +484,7 @@ const TwitchIntegration: React.FC = () => {
                               </p>
                             )}
                             
-                            <div className="mt-2 flex items-center space-x-2">
+                            <div className="mt-2 flex flex-wrap gap-2">
                               <a 
                                 href={getTwitchChannelUrl(event.broadcaster_name)}
                                 target="_blank"
@@ -470,6 +517,13 @@ const TwitchIntegration: React.FC = () => {
                                     <FaRegHeart className="mr-1" /> Follow
                                   </span>
                                 )}
+                              </button>
+
+                              <button
+                                onClick={() => viewChannelVIPs(event.broadcaster_id, event.broadcaster_name)}
+                                className="text-sm px-3 py-1 inline-flex items-center border border-bright-purple text-white hover:bg-bright-purple/20 transition rounded"
+                              >
+                                <FaCrown className="mr-1 text-bright-purple" /> View VIPs
                               </button>
                             </div>
                           </div>
@@ -515,7 +569,7 @@ const TwitchIntegration: React.FC = () => {
                               </p>
                             )}
                             
-                            <div className="mt-2 flex items-center space-x-2">
+                            <div className="mt-2 flex flex-wrap gap-2">
                               <a 
                                 href={getTwitchChannelUrl(event.broadcaster_name)}
                                 target="_blank"
@@ -549,6 +603,13 @@ const TwitchIntegration: React.FC = () => {
                                   </span>
                                 )}
                               </button>
+                              
+                              <button
+                                onClick={() => viewChannelVIPs(event.broadcaster_id, event.broadcaster_name)}
+                                className="text-sm px-3 py-1 inline-flex items-center border border-bright-purple text-white hover:bg-bright-purple/20 transition rounded"
+                              >
+                                <FaCrown className="mr-1 text-bright-purple" /> View VIPs
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -557,50 +618,74 @@ const TwitchIntegration: React.FC = () => {
                 </div>
               )}
 
-                {authData && (
-                <div className="mt-8">
-                    <div className="neo-card neo-card-purple p-6">
-                    <h4 className="text-lg font-cyber flex items-center mb-4">
-                        <FaCrown className="text-neon-pink mr-2" /> Channel VIPs
-                    </h4>
+              {/* VIPs Section */}
+              <div className="mt-8">
+                <div className="neo-card neo-card-purple p-6">
+                  <h4 className="text-lg font-cyber flex items-center mb-4">
+                    <FaCrown className="text-neon-pink mr-2" /> Channel VIPs: {selectedBroadcaster.name}
+                  </h4>
+                  
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-400 mb-2">
+                      VIPs are special members recognized by the broadcaster for their contributions to the channel.
+                    </p>
                     
-                    <div className="mb-4">
-                        <p className="text-sm text-gray-400 mb-2">
-                        VIPs are special members recognized by the broadcaster for their contributions to the channel.
-                        </p>
-                        
-                        {/* Default to AkaneDoThis channel */}
-                        <TwitchVIPsList 
-                        broadcasterId="258e0f7f-cdd0-4ab8-89f2-82d97993f474" 
-                        broadcasterName="AkaneDoThis" 
-                        />
-                    </div>
-                    
-                    {/* Optional: Allow switching to view VIPs of currently live followed channels */}
-                    {events.filter(e => e.type === 'live').length > 0 && (
-                        <div className="mt-6 pt-4 border-t border-white/10">
-                        <h5 className="text-md font-cyber mb-2">
-                            Live Channel VIPs
-                        </h5>
-                        
-                        <div className="space-y-4">
-                            {events
-                            .filter(event => event.type === 'live')
-                            .slice(0, 1) // Just show the first one to keep it simple
-                            .map(event => (
-                                <div key={`vips-${event.id}`}>
-                                <TwitchVIPsList 
-                                    broadcasterId={event.broadcaster_id} 
-                                    broadcasterName={event.broadcaster_name} 
-                                />
-                                </div>
-                            ))}
-                        </div>
-                        </div>
+                    {vips.length > 0 ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {vips.map(vip => (
+                          <div 
+                            key={vip.user_id}
+                            className="neo-card neo-card-pink p-2 cursor-pointer hover:bg-neon-pink/20 transition"
+                            onClick={() => window.open(`https://twitch.tv/${vip.user_login}`, '_blank')}
+                          >
+                            <div className="flex items-center">
+                              <div className="mr-2 text-neon-pink">
+                                <FaUser size={14} />
+                              </div>
+                              <div className="flex-1 truncate text-sm">
+                                {vip.user_name}
+                              </div>
+                              <div className="text-gray-400">
+                                <FaExternalLinkAlt size={10} />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center p-4 bg-black/30 rounded">
+                        <span className="text-gray-400">No VIPs found for this channel</span>
+                      </div>
                     )}
+                  </div>
+                  
+                  {events.filter(e => e.type === 'live').length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-white/10">
+                      <h5 className="text-md font-cyber mb-2">
+                        Choose Another Channel
+                      </h5>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        {events
+                          .filter(event => event.type === 'live')
+                          .map(event => (
+                            <button
+                              key={`vip-btn-${event.broadcaster_id}`}
+                              onClick={() => viewChannelVIPs(event.broadcaster_id, event.broadcaster_name)}
+                              className={`px-3 py-1 text-sm border rounded ${
+                                selectedBroadcaster.id === event.broadcaster_id
+                                  ? 'bg-bright-purple text-white border-bright-purple'
+                                  : 'border-bright-purple/50 text-bright-purple/80 hover:bg-bright-purple/20'
+                              }`}
+                            >
+                              {event.broadcaster_name}
+                            </button>
+                          ))}
+                      </div>
                     </div>
+                  )}
                 </div>
-                )}
+              </div>
             </div>
           ) : (
             <div className="text-center py-8">
