@@ -24,7 +24,6 @@
       'user:read:subscriptions',
       'channel:read:subscriptions',
       'channel:read:vips',      // Add this line for VIP reading
-      'channel:manage:vips'     // Add this line for VIP management
     ]
   };
 
