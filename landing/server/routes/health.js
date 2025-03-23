@@ -11,7 +11,9 @@ router.get('/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    api: 'Twitch integration API'
+    api: 'Twitch integration API',
+    clientId: process.env.TWITCH_CLIENT_ID ? '✓ Set' : '✗ Not set',
+    clientSecret: process.env.TWITCH_CLIENT_SECRET ? '✓ Set' : '✗ Not set',
   });
 });
 

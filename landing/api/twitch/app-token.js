@@ -9,6 +9,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  console.log('app-token endpoint hit');
 
   try {
     // Get environment variables
