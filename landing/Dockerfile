@@ -1,4 +1,4 @@
-FROM node:18-alpine as build
+FROM node:18-alpine AS build
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ ENV VITE_TWITCH_CLIENT_ID=$TWITCH_CLIENT_ID
 ENV VITE_TWITCH_CLIENT_SECRET=$TWITCH_CLIENT_SECRET
 ENV NODE_ENV=production
 
-RUN npm run build
+RUN mkdir -p dist && npm run build
 
 # Production stage
 FROM node:18-alpine as production

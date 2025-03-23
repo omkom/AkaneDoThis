@@ -85,6 +85,9 @@ docker compose down
 check_error "Failed to stop landing containers"
 cd ..
 
+# Remove volumes to clean locked resources
+docker volume rm akane_landing_dist_data || true
+
 # Clean previous build artifacts
 log "Cleaning previous build artifacts..."
 rm -rf landing/dist
@@ -101,6 +104,7 @@ check_error "Failed to clean Docker builder cache"
 log "Removing dangling images..."
 docker image prune -f
 check_error "Failed to remove dangling images"
+
 
 # Rebuild landing Docker image from scratch
 log "Rebuilding landing image from scratch..."
