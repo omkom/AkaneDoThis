@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
-import TwitchHeroOverlay from './Twitch/TwitchHeroOverlay';
 import StreamerSpotlight from './Twitch/StreamerSpotlight';
 import './css/hero.css';
 
@@ -64,11 +63,8 @@ export default function Hero() {
         </h1>
         <p className="font-body text-xl md:text-2xl mb-8 text-electric-blue tracking-wide">Diffuser le futur, un pixel à la fois</p>
         
-        {/* Replaced the old CTA button with the new StreamerSpotlight component */}
+        {/* StreamerSpotlight with integrated follow button and subscribers */}
         <StreamerSpotlight />
-
-        {/* Twitch Hero Overlay - Added Component */}
-        <TwitchHeroOverlay />
       </div>
       
       {/* Animated background elements */}
