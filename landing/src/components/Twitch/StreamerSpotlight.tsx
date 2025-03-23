@@ -50,9 +50,9 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [followLoading, setFollowLoading] = useState<boolean>(false);
   const [channelData, setChannelData] = useState<Partial<TwitchChannelData>>({
-    broadcaster: null,
-    stream: null,
-    channel: null,
+    broadcaster: undefined,
+    stream: undefined,
+    channel: undefined,
     followers: { total: 0, data: [] },
     isLive: false,
     subscriberCount: 0,
