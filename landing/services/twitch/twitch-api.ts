@@ -14,6 +14,8 @@ import {
   TwitchSchedule
 } from './twitch-types';
 
+import { getVideos, TwitchVideo } from './getVideos';
+
 /**
  * Enhanced request function for Twitch API with optimized caching and retry logic
  */
@@ -643,3 +645,6 @@ declare global {
     _twitchApiCache?: Map<string, { data: any; expiry: number }>;
   }
 }
+
+export { getVideos };
+export type { TwitchVideo };
