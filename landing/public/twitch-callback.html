@@ -93,18 +93,34 @@
           statusElement.innerHTML = '<p class="success">Authentication successful!</p><p>You can close this window now.</p>';
           
           // Send the token back to the parent window
-          if (window.opener && !window.opener.closed) {
-            window.opener.postMessage({
-              type: 'TWITCH_AUTH',
-              token: params.access_token,
-              state: params.state || ''
-            }, window.location.origin);
-            
-            // Close this window after a short delay
-            setTimeout(() => window.close(), 1500);
-          } else {
-            statusElement.innerHTML = '<p class="error">Error: Could not communicate with the main window.</p><p>Please close this window and try again.</p>';
-          }
+          try {
+            // Use window.opener when available (new window)
+            if (window.opener && !window.opener.closed) {
+              window.opener.postMessage({
+                type: 'TWITCH_AUTH',
+                token: params.access_token,
+                state: params.state || ''
+              }, window.location.origin);
+            } 
+            // Fallback to parent when in an iframe
+            else if (window.parent && window.parent !== window) {
+              window.parent.postMessage({
+                type: 'TWITCH_AUTH',
+                token: params.access_token,
+                state: params.state || ''
+              }, window.location.origin);
+            }
+            // If nothing else, try to use main window
+            else if (window.top) {
+              window.top.postMessage({
+                type: 'TWITCH_AUTH',
+                token: params.access_token,
+                state: params.state || ''
+              }, window.location.origin);
+            }
+            else {
+              statusElement.innerHTML = '<p class="error">Error: Could not communicate with the main window.</p><p>Please close this window and try again.</p>';
+            }
         } else if (params.error) {
           statusElement.innerHTML = `<p class="error">Authentication error: ${params.error}</p><p>Please close this window and try again.</p>`;
         } else {
