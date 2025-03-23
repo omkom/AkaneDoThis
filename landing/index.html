@@ -2,19 +2,56 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Environment Variable Loader -->
+    <!-- Enhanced Environment Variable Loader -->
     <script>
+      // Initialize environment object
       window.ENV = window.ENV || {};
-      document.querySelectorAll('meta[name^="env-"]').forEach((meta) => {
-        const name = meta.getAttribute('name')?.replace('env-', '');
-        const value = meta.getAttribute('content');
-        if (name && value) {
-          window.ENV[name] = value;
-          if (name === 'TWITCH_CLIENT_ID') {
-            window.TWITCH_CLIENT_ID = value;
+      
+      // Process meta tags with environment variables
+      function processMetaTags() {
+        document.querySelectorAll('meta[name^="env-"]').forEach((meta) => {
+          const name = meta.getAttribute('name')?.replace('env-', '');
+          const value = meta.getAttribute('content');
+          if (name && value) {
+            window.ENV[name] = value;
+            // Special handling for Twitch client ID
+            if (name === 'TWITCH_CLIENT_ID' || name === 'VITE_TWITCH_CLIENT_ID') {
+              window.TWITCH_CLIENT_ID = value;
+              window.ENV.TWITCH_CLIENT_ID = value;
+            }
           }
+        });
+        
+        // Log environment variables in development
+        if (window.ENV.NODE_ENV !== 'production') {
+          console.log('[ENV] Initialized from meta tags:', { ...window.ENV });
+          console.log('[ENV] TWITCH_CLIENT_ID:', window.TWITCH_CLIENT_ID);
         }
-      });
+      }
+      
+      // Load environment script if it exists
+      function loadEnvScript() {
+        return new Promise((resolve) => {
+          const script = document.createElement('script');
+          script.src = '/env.js';
+          script.onload = () => {
+            if (window.ENV.NODE_ENV !== 'production') {
+              console.log('[ENV] Loaded from env.js:', { ...window.ENV });
+              console.log('[ENV] TWITCH_CLIENT_ID after env.js:', window.TWITCH_CLIENT_ID);
+            }
+            resolve();
+          };
+          script.onerror = () => {
+            console.warn('Failed to load env.js, using defaults');
+            resolve();
+          };
+          document.head.appendChild(script);
+        });
+      }
+      
+      // Initialize environment
+      processMetaTags();
+      loadEnvScript();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AkaneDoThis - Streamer Twitch Français</title>

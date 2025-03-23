@@ -1,52 +1,92 @@
 // services/twitch/twitch-client.ts
-// Global configuration and utility functions for Twitch integration
+// Global configuration and utility functions for Twitch integration with improved client ID handling
 
 /**
- * Safely get client ID from various sources
+ * Safely get client ID from various sources with enhanced priority handling
  */
 function getClientId(): string {
   try {
     if (typeof window !== 'undefined') {
-      // Try window.ENV first (set by server-side)
+      // First priority: Directly set TWITCH_CLIENT_ID
+      if (window.TWITCH_CLIENT_ID && typeof window.TWITCH_CLIENT_ID === 'string' && window.TWITCH_CLIENT_ID.length > 0) {
+        console.log('[Twitch] Using window.TWITCH_CLIENT_ID');
+        return window.TWITCH_CLIENT_ID;
+      }
+      
+      // Second priority: Check ENV object for TWITCH_CLIENT_ID
       if (window.ENV?.TWITCH_CLIENT_ID) {
-        const id = window.ENV.TWITCH_CLIENT_ID as string;
+        const id = window.ENV.TWITCH_CLIENT_ID;
         if (id && typeof id === 'string' && id.length > 0) {
+          console.log('[Twitch] Using window.ENV.TWITCH_CLIENT_ID');
           return id;
         }
       }
       
-      // Try window.TWITCH_CLIENT_ID (set by twitch-auth-client.js)
-      if (window.TWITCH_CLIENT_ID && typeof window.TWITCH_CLIENT_ID === 'string' && window.TWITCH_CLIENT_ID.length > 0) {
-        return window.TWITCH_CLIENT_ID;
+      // Third priority: Check ENV object for VITE_TWITCH_CLIENT_ID
+      if (window.ENV?.VITE_TWITCH_CLIENT_ID) {
+        const id = window.ENV.VITE_TWITCH_CLIENT_ID;
+        if (id && typeof id === 'string' && id.length > 0) {
+          console.log('[Twitch] Using window.ENV.VITE_TWITCH_CLIENT_ID');
+          return id;
+        }
+      }
+      
+      // Look for any other key in ENV that might contain TWITCH and CLIENT_ID
+      if (window.ENV) {
+        for (const [key, value] of Object.entries(window.ENV)) {
+          if (key.includes('TWITCH') && key.includes('CLIENT_ID') && value && typeof value === 'string' && value.length > 0) {
+            console.log(`[Twitch] Using window.ENV.${key}`);
+            return value;
+          }
+        }
       }
     }
     
+    // Check for import.meta.env - this will work during build time with Vite
+    try {
+      // @ts-ignore - this is a Vite-specific global
+      if (import.meta && import.meta.env) {
+        // Check various possible env keys
+        // @ts-ignore - this is a Vite-specific global
+        const viteClientId = import.meta.env.VITE_TWITCH_CLIENT_ID || 
+                            // @ts-ignore
+                            import.meta.env.TWITCH_CLIENT_ID;
+        
+        if (viteClientId && typeof viteClientId === 'string' && viteClientId.length > 0) {
+          console.log('[Twitch] Using import.meta.env client ID');
+          return viteClientId;
+        }
+      }
+    } catch (e) {
+      // Ignore errors accessing import.meta
+    }
+    
     // Try process.env for environment variables (Node.js environments)
-    if (typeof process !== 'undefined' && process.env && process.env.VITE_TWITCH_CLIENT_ID) {
-      return process.env.VITE_TWITCH_CLIENT_ID;
+    if (typeof process !== 'undefined' && process.env) {
+      const nodeClientId = process.env.VITE_TWITCH_CLIENT_ID || 
+                           process.env.TWITCH_CLIENT_ID;
+                           
+      if (nodeClientId && typeof nodeClientId === 'string' && nodeClientId.length > 0) {
+        console.log('[Twitch] Using process.env client ID');
+        return nodeClientId;
+      }
     }
     
     // If we get here, we couldn't find a valid client ID
-    console.warn('Could not find a valid Twitch client ID in any environment');
+    console.warn('[Twitch] Could not find a valid Twitch client ID in any environment');
     
     // For development environments only, provide a fallback
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || 
+        // @ts-ignore
+        (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE === 'development')) {
       const fallbackId = "udrg080q6g8t7qbhgo67x0ytt08otn"; // Demo/placeholder
-      console.warn(`Using fallback Twitch client ID: ${fallbackId}`);
+      console.warn(`[Twitch] Using fallback Twitch client ID for development: ${fallbackId}`);
       return fallbackId;
-    }
-    
-    // In production, throw an error instead of using a fallback
-    if (process.env.NODE_ENV === 'production') {
-      const fallbackId = "udrg080q6g8t7qbhgo67x0ytt08otn"; // Demo/placeholder
-      console.warn(`Using fallback Twitch client ID: ${fallbackId}`);
-      throw new Error('No Twitch client ID found in production environment');
     }
     
     return '';
   } catch (error) {
-    console.error('Error getting Twitch client ID:', error);
-    // In production, you might want to report this to your error tracking service
+    console.error('[Twitch] Error getting Twitch client ID:', error);
     return '';
   }
 }
@@ -68,6 +108,11 @@ export const TWITCH_CONFIG = {
   MAX_RETRY_ATTEMPTS: 2,
 };
 
+// Log the client ID in development
+if (process.env.NODE_ENV !== 'production') {
+  console.log(`[Twitch] Configuration initialized with CLIENT_ID: ${TWITCH_CONFIG.CLIENT_ID.substring(0, 5)}...`);
+}
+
 /**
  * Validate environment configuration
  * @returns {boolean} True if config is valid, false otherwise
@@ -76,12 +121,15 @@ export function validateConfig(): boolean {
   const hasClientId = !!TWITCH_CONFIG.CLIENT_ID;
   
   if (!hasClientId) {
-    console.error('Twitch Client ID is missing! Set VITE_TWITCH_CLIENT_ID in your environment');
+    console.error('[Twitch] Twitch Client ID is missing! Set VITE_TWITCH_CLIENT_ID in your environment');
     return false;
   }
   
   return true;
 }
+
+// Rest of the code remains the same...
+// (Format functions stay the same)
 
 /**
  * Format numerical values for display (e.g., 1.2K, 3.4M)

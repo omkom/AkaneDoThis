@@ -1,12 +1,4 @@
-# Note: 'version' attribute is obsolete and will be ignored in newer Docker Compose versions
-
-# Define common configurations to avoid repetition
-x-logging: &default-logging
-  driver: "json-file"
-  options:
-    max-size: "10m"
-    max-file: "3"
-
+# Updated docker-compose.yml for landing directory
 services:
   # Development environment with hot reloading
   dev:
@@ -17,15 +9,16 @@ services:
     volumes:
       # Mount the source code for development
       - .:/app:delegated
-      # Use Docker volumes for node_modules and dist for better performance
+      # Use Docker volume for node_modules for better performance
       - node_modules:/app/node_modules
-      - dist:/app/dist
     ports:
       - "${DEV_PORT:-5173}:5173"
       - "${API_PORT:-3000}:3000"
     environment:
       - NODE_ENV=development
+      # Properly pass both TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_ID
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
       # Vite optimization settings
       - VITE_DEV_SERVER_HOST=0.0.0.0
@@ -36,6 +29,7 @@ services:
     command: >
       sh -c "
         echo 'Starting development servers...' &&
+        echo 'TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}' &&
         npm run dev -- --host 0.0.0.0 & 
         node server/index.js & 
         wait
@@ -46,35 +40,36 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    logging: *default-logging
     deploy:
       resources:
         limits:
           cpus: '2.0'
           memory: 2G
 
-  # Build service for production assets
+  # Build service - outputs directly to shared host directory
   build:
     build:
       context: .
       dockerfile: Dockerfile
       target: builder
+      args:
+        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+        - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
     volumes:
-      - dist_data:/app/dist
+      - ./dist:/app/dist
     environment:
       - NODE_ENV=production
+      # Properly pass both TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_ID
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       # Optimize build performance
       - NODE_OPTIONS="--max-old-space-size=4096"
       - VITE_BUILD_MINIFY=true
       - VITE_BUILD_SOURCEMAP=false
     command: >
       sh -c "
-        mkdir -p /app/dist &&
-        npm run build &&
-        cp -r dist/* /app/dist/ &&
-        chmod -R 755 /app/dist &&
-        echo 'Build completed successfully'
+        echo 'Building with TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}' &&
+        npm run build
       "
     deploy:
       resources:
@@ -88,24 +83,28 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
+      args:
+        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+        - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
     ports:
       - "${SERVE_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
+      # Properly pass both TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_ID
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - PORT=3000
       # Enable compression and caching
       - ENABLE_COMPRESSION=true
       - HTTP_CACHE_CONTROL="public, max-age=86400"
     volumes:
-      - dist_data:/app/dist:ro
+      - ./dist:/app/dist:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 5s
-    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -115,12 +114,6 @@ services:
           cpus: '0.1'
           memory: 128M
 
-# Named volumes for data persistence and better performance
+# Named volume for node_modules in development
 volumes:
-  # Volume for storing built artifacts
-  dist_data:
-    name: akane_dist_data
-  # Volume for development node_modules
   node_modules:
-  # Volume for development build artifacts
-  dist:

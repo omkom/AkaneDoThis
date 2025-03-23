@@ -1,14 +1,13 @@
 #!/bin/bash
 
-# Enhanced development environment script with proper hot reload support,
-# improved error handling, and performance optimizations
+# Simplified development environment script with proper hot reload support
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
 # Configuration
 LOGFILE="dev_log.txt"
 ENV_FILE=".env"
-DEV_PORT=5173
+DEV_PORT=5174
 API_PORT=3000
 LOCKFILE="/tmp/akane-dev.lock"
 
@@ -20,13 +19,7 @@ if [ -f "$LOCKFILE" ] && kill -0 "$(cat $LOCKFILE)" 2>/dev/null; then
   read -p "Do you want to view the logs of the running environment? (y/n) " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
-    # Get Docker Compose command (support both v1 and v2)
-    if command -v docker compose &> /dev/null; then
-      COMPOSE_CMD="docker compose"
-    else 
-      COMPOSE_CMD="docker compose"
-    fi
-    cd landing && $COMPOSE_CMD logs -f dev
+    cd landing && docker compose logs -f dev
   fi
   exit 0
 fi
@@ -49,22 +42,6 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a $LOGFILE
 }
 
-# Function to check for errors
-check_error() {
-  if [ $? -ne 0 ]; then
-    log "ERROR: $1"
-    exit 1
-  fi
-}
-
-# Check for required tools
-for cmd in docker curl grep lsof; do
-  if ! command -v $cmd &> /dev/null; then
-    log "ERROR: Required command '$cmd' not found. Please install it and try again."
-    exit 1
-  fi
-done
-
 # Clear previous log
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Development environment startup" > $LOGFILE
 
@@ -86,10 +63,6 @@ else
   source "$ENV_FILE"
   set +a
   
-  # Use environment variables or defaults
-  DEV_PORT=${DEV_PORT:-5173}
-  API_PORT=${API_PORT:-3000}
-  
   log "Environment loaded. Using ports: DEV_PORT=$DEV_PORT, API_PORT=$API_PORT"
 fi
 
@@ -99,36 +72,7 @@ if [ ! -d "landing" ]; then
   exit 1
 fi
 
-# Get Docker Compose command (support both v1 and v2)
-if command -v docker compose &> /dev/null; then
-  COMPOSE_CMD="docker compose"
-else
-  COMPOSE_CMD="docker compose"
-fi
-log "Using Docker Compose command: $COMPOSE_CMD"
-
-# Check Docker service
-log "Checking Docker service..."
-if ! docker info >/dev/null 2>&1; then
-  log "ERROR: Docker service is not running or you don't have permission to use it."
-  log "Please start Docker service or run with sudo if needed."
-  exit 1
-fi
-
-# Stop all running containers
-log "Stopping all running containers..."
-$COMPOSE_CMD down --remove-orphans
-check_error "Failed to stop main containers"
-
-cd landing || {
-  log "ERROR: Could not change to landing directory"
-  exit 1
-}
-$COMPOSE_CMD down --remove-orphans
-check_error "Failed to stop landing containers"
-cd ..
-
-# Check for port conflicts before starting
+# Check for port conflicts
 log "Checking for port conflicts..."
 PORT_CONFLICTS=""
 
@@ -151,42 +95,31 @@ if [ ! -z "$PORT_CONFLICTS" ]; then
   fi
 fi
 
-# Make sure we have the latest Docker images
-log "Checking for Docker image updates..."
+# Stop all running containers
+log "Stopping any running containers..."
 cd landing
-$COMPOSE_CMD pull
-check_error "Failed to pull Docker images"
-
-# Build containers if necessary (with cache)
-log "Building development containers..."
-$COMPOSE_CMD build dev
-check_error "Failed to build development containers"
-
-# Set up port forward for proper hot reload with websocket support
-HOST_IP=$(hostname -I | awk '{print $1}' | head -n1)
-log "Using host IP: $HOST_IP for network communications"
+docker compose down --remove-orphans
+cd ..
 
 # Export environment variables to Docker Compose
 export DEV_PORT
 export API_PORT
-export HOST_IP
 export TWITCH_CLIENT_ID
 export TWITCH_CLIENT_SECRET
 export NODE_ENV=development
 
-# Create required volumes if they don't exist
-log "Setting up Docker volumes..."
-docker volume create akane_dist_data || true
-docker volume create akane_n8n_data || true
-
-# Start the combined development environment with optimized parameters
+# Start the development environment
 log "Starting development environment..."
-$COMPOSE_CMD up -d dev
-check_error "Failed to start development containers"
+cd landing
+docker compose up -d dev
+if [ $? -ne 0 ]; then
+  log "ERROR: Failed to start development containers"
+  exit 1
+fi
 
 # Wait for services to be ready with progressive backoff
 log "Waiting for development server to start..."
-MAX_RETRIES=30
+MAX_RETRIES=20
 RETRY_INTERVAL=1
 RETRIES=0
 
@@ -206,34 +139,13 @@ while [ $RETRIES -lt $MAX_RETRIES ]; do
   fi
 done
 
-# Check API server status
-RETRIES=0
-RETRY_INTERVAL=1
-
-while [ $RETRIES -lt $MAX_RETRIES ]; do
-  if curl -s http://localhost:$API_PORT/health > /dev/null; then
-    log "✅ API server is up and running"
-    break
-  fi
-  
-  RETRIES=$((RETRIES+1))
-  if [ $RETRIES -eq $MAX_RETRIES ]; then
-    log "WARNING: API server did not start in time. Check logs for issues."
-  else
-    RETRY_INTERVAL=$(( RETRY_INTERVAL * 2 > 5 ? 5 : RETRY_INTERVAL * 2 ))
-    log "Waiting for API server (attempt $RETRIES/$MAX_RETRIES)..."
-    sleep $RETRY_INTERVAL
-  fi
-done
-
 # Indicate that we're about to follow logs
 FOLLOWING_LOGS="true"
 
-# Follow logs
+# Log success
 log "Development environment started successfully"
 log "Vite development server is running at http://localhost:$DEV_PORT"
 log "API server is running at http://localhost:$API_PORT"
-log "Following logs (Ctrl+C to stop following, but keep containers running)..."
 
 echo ""
 echo "╔═════════════════════════════════════════════════════════════════╗"
@@ -247,9 +159,8 @@ echo "║ Run './stop-dev.sh' to completely stop the development servers  ║"
 echo "╚═════════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Follow logs without blocking further commands
-cd landing
-$COMPOSE_CMD logs -f dev
+# Follow logs
+docker compose logs -f dev
 
 # Handle exit
 log "Stopped following logs, but development environment is still running"

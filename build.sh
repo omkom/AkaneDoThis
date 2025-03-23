@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to rebuild and redeploy the website
+# Simplified script to rebuild and redeploy the website
 LOGFILE="build_log.txt"
 
 # Function to log messages
@@ -34,45 +34,26 @@ check_error "Failed to stop main containers"
 cd landing
 docker compose down
 check_error "Failed to stop landing containers"
-cd ..
 
 # Clean previous build artifacts
 log "Cleaning previous build artifacts..."
-rm -rf landing/dist
+rm -rf dist
 check_error "Failed to clean dist directory"
-mkdir -p landing/dist
+mkdir -p dist
 check_error "Failed to create clean dist directory"
 
-# Clean Docker cache
-log "Cleaning Docker cache..."
-docker builder prune -f
-check_error "Failed to clean Docker builder cache"
-
-# Remove any dangling images
-log "Removing dangling images..."
-docker image prune -f
-check_error "Failed to remove dangling images"
-
-# Rebuild landing Docker image from scratch
-log "Rebuilding landing image from scratch..."
-cd landing
-docker compose build --no-cache build
-check_error "Failed to rebuild landing image"
-docker compose run --rm build npm ci
-check_error "Failed to install dependencies"
-
+# Run the build container to generate the dist
+log "Building static assets..."
 docker compose run --rm build
-check_error "Build process failed"
+check_error "Failed to build static assets"
 
 # Verify build output
-docker compose run --rm build sh -c "[ -f /app/dist/index.html ]"
-if [ $? -ne 0 ]; then
-  log "ERROR: Build failed - index.html not found in container's dist folder"
+if [ ! -f "dist/index.html" ]; then
+  log "ERROR: Build failed - index.html not found in dist folder"
   exit 1
 fi
-log "Build files verified in container"
+log "Build files verified successfully"
 
-log "Build completed successfully"
 cd ..
 
 # Clear Nginx cache if exists

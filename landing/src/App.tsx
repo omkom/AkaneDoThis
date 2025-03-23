@@ -10,22 +10,32 @@ import Footer from './components/Footer';
 import TwitchIntegration from './components/Twitch/TwitchIntegration';
 import { trackPageView, trackFormSubmit } from './utils/analytics';
 import TwitchApiLogger from './components/Twitch/TwitchApiLogger';
-import { setupEnvironment } from './utils/env-config';
+import { setupEnvironment, getEnv } from './utils/env-config';
 
 // Import assets
 import React from 'react';
 
 export default function App() {
   const [email, setEmail] = useState('');
+  const [isEnvInitialized, setIsEnvInitialized] = useState(false);
 
   // Initialize environment configuration
   useEffect(() => {
-    // Set up environment variables with a fallback configuration
-    setupEnvironment({
+    // Set up environment variables first thing
+    const env = setupEnvironment({
       // Add your development Twitch Client ID here for local development
       // In production, this should come from the server's environment variables
-      TWITCH_CLIENT_ID: "udrg080q6g8t7qbhgo67x0ytt08otn" // Demo/placeholder client ID - replace with your actual one
+      TWITCH_CLIENT_ID: process.env.TWITCH_CLIENT_ID || window.TWITCH_CLIENT_ID || "",
+      VITE_TWITCH_CLIENT_ID: process.env.VITE_TWITCH_CLIENT_ID || ""
     });
+    
+    console.log("Environment initialized:", {
+      TWITCH_CLIENT_ID: getEnv('TWITCH_CLIENT_ID'),
+      VITE_TWITCH_CLIENT_ID: getEnv('VITE_TWITCH_CLIENT_ID'),
+      globalTwitchClientId: window.TWITCH_CLIENT_ID
+    });
+    
+    setIsEnvInitialized(true);
     
     // Track page view
     trackPageView(window.location.pathname, document.title);
@@ -57,6 +67,17 @@ export default function App() {
     console.log('Email submitted:', email);
     setEmail('');
   };
+
+  if (!isEnvInitialized) {
+    return (
+      <div className="min-h-screen bg-jet-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-cyber neon-text cyan mb-4">Initializing Environment...</h1>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-electric-blue mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-jet-black text-white">

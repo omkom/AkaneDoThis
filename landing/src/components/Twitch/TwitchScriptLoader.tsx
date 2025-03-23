@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import React from 'react';
 import { TWITCH_CONFIG } from '../../../services/twitch/twitch-client';
 import { TwitchAuthData } from '../../../services/twitch/twitch-types';
+import { getEnv } from '../../utils/env-config';
 
 interface TwitchScriptLoaderProps {
   children: React.ReactNode;
 }
 
 /**
- * TwitchScriptLoader Component
+ * Enhanced TwitchScriptLoader Component
  * Loads the Twitch authentication script and initializes the environment
  */
 const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => {
@@ -25,6 +26,19 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
   
     const loadScript = () => {
       try {
+        // Ensure client ID is available
+        const clientId = window.TWITCH_CLIENT_ID || 
+                         window.ENV?.TWITCH_CLIENT_ID || 
+                         window.ENV?.VITE_TWITCH_CLIENT_ID ||
+                         getEnv('TWITCH_CLIENT_ID') ||
+                         TWITCH_CONFIG.CLIENT_ID;
+        
+        if (!clientId) {
+          console.error('No Twitch Client ID found. Authentication will likely fail.');
+        } else {
+          console.log(`TwitchScriptLoader: Using client ID: ${clientId.substring(0, 5)}...`);
+        }
+        
         // Create script element
         const script = document.createElement('script');
         script.src = '/twitch-auth-client.js';
@@ -48,16 +62,17 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
           }
           
           // Set the client ID if not already set
-          if (!window.TWITCH_CLIENT_ID && TWITCH_CONFIG.CLIENT_ID) {
-            window.TWITCH_CLIENT_ID = TWITCH_CONFIG.CLIENT_ID;
-            console.log('Set TWITCH_CLIENT_ID from config:', window.TWITCH_CLIENT_ID);
+          if (!window.TWITCH_CLIENT_ID && clientId) {
+            window.TWITCH_CLIENT_ID = clientId;
+            console.log('Set TWITCH_CLIENT_ID in window:', window.TWITCH_CLIENT_ID);
           } else if (window.TWITCH_CLIENT_ID) {
-            console.log('TWITCH_CLIENT_ID already set in window');
+            console.log('TWITCH_CLIENT_ID already set in window:', window.TWITCH_CLIENT_ID);
           }
           
           // If window.setTwitchClientId exists, use it too
-          if (window.setTwitchClientId && TWITCH_CONFIG.CLIENT_ID) {
-            window.setTwitchClientId(TWITCH_CONFIG.CLIENT_ID);
+          if (window.setTwitchClientId && clientId) {
+            window.setTwitchClientId(clientId);
+            console.log('Called setTwitchClientId with:', clientId);
           }
           
           setScriptLoaded(true);
@@ -110,6 +125,7 @@ declare global {
     getTwitchAuth?: () => TwitchAuthData | null;
     setTwitchClientId?: (clientId: string) => void;
     TWITCH_CLIENT_ID?: string;
+    ENV?: Record<string, string>;
   }
 }
 
