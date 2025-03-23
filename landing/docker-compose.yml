@@ -1,45 +1,74 @@
+version: '3.8'
+
 services:
   dev:
     build:
       context: .
       dockerfile: Dockerfile
+      target: build
     volumes:
       - .:/app
-      - /app/node_modules
+      - /app/node_modules  # Exclude node_modules from mounting
+      - /app/dist  # Exclude dist from mounting
     ports:
-      - "5174:5173"
-      - "3000:3000"
+      - "5174:5173"  # Vite dev server
+      - "3000:3000"  # Express API server
     environment:
       - NODE_ENV=development
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
     command: sh -c "npm run dev -- --host 0.0.0.0 & node server/index.js & wait"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   build:
     build:
       context: .
       dockerfile: Dockerfile
-    command: npm run build
+      target: build
+      args:
+        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+        - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
     volumes:
       - dist_data:/app/dist
     environment:
       - NODE_ENV=production
       - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-      - VITE_TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    command: >
+      sh -c "
+        mkdir -p /app/dist &&
+        npm run build &&
+        echo 'Build completed. Copying to volume...' &&
+        cp -r /app/dist/* /app/dist/ &&
+        chmod -R 755 /app/dist
+      "
 
   prod:
     build:
       context: .
       dockerfile: Dockerfile
-    command: node server/index.js
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-      - VITE_TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      - PORT=3000
     volumes:
       - dist_data:/app/dist:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
 volumes:
   dist_data:
+    external: true
+    name: akane_landing_dist_data
