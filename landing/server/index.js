@@ -5,7 +5,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import twitchRoutes from './routes/twitch.js';
+import twitchRoutes from '../../da/backup/twitch.js';
 import createEnvMiddleware from './middleware/env-middleware.js';
 
 // Load environment variables

@@ -10,5 +10,5 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["src", "public/js/cubi-easter-egg.js"]
+  "include": ["src", "public/js/cubi-easter-egg.js", "../da/backup/TwitchApiTester.tsx"]
 }
