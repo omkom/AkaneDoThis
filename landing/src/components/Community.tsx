@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { CSSProperties } from 'react';
 
-const backgroundStyle = {
+const backgroundStyle: CSSProperties = {
   backgroundImage: "url('/chanel-background-large.png')",
   backgroundSize: 'cover',
   backgroundPosition: 'center',

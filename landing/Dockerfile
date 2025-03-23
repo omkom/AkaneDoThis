@@ -8,8 +8,8 @@ RUN npm install
 
 COPY . .
 
-# We don't build here as it will be done by the "build" service
-# or we'll run in dev mode
+# Add build step to ensure we have a valid build in the container
+RUN npm run build
 
 EXPOSE 3000
 

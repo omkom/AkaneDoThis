@@ -1,24 +1,21 @@
 import { useEffect, useState } from 'react';
-import { getEnv, setupEnvironment } from '../../utils/env-config';
 import React from 'react';
+import { TWITCH_CONFIG } from '../../../services/twitch/twitch-client';
 
 interface TwitchScriptLoaderProps {
   children: React.ReactNode;
 }
 
+/**
+ * TwitchScriptLoader Component
+ * Loads the Twitch authentication script and initializes the environment
+ */
 const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => {
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Initialize environment variables first
-    setupEnvironment({
-      // You can provide a fallback client ID here for development
-      // Replace with your actual Twitch client ID
-      TWITCH_CLIENT_ID: "udrg080q6g8t7qbhgo67x0ytt08otn" // Demo/placeholder client ID
-    });
-
-    // Check if script is already loaded
+    // Check if script is already loaded or we already have window.loginWithTwitch
     if (window.loginWithTwitch) {
       setScriptLoaded(true);
       return;
@@ -30,20 +27,31 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
         const script = document.createElement('script');
         script.src = '/twitch-auth-client.js';
         script.async = true;
+        
         script.onload = () => {
           console.log('Twitch auth client script loaded successfully');
-          // Manually set TWITCH_CLIENT_ID from env if needed
-          if (!window.TWITCH_CLIENT_ID) {
-            window.TWITCH_CLIENT_ID = getEnv('TWITCH_CLIENT_ID', '');
-            console.log('Set TWITCH_CLIENT_ID from env:', window.TWITCH_CLIENT_ID);
+          
+          // Set the client ID if not already set
+          if (!window.TWITCH_CLIENT_ID && TWITCH_CONFIG.CLIENT_ID) {
+            window.TWITCH_CLIENT_ID = TWITCH_CONFIG.CLIENT_ID;
+            console.log('Set TWITCH_CLIENT_ID from config:', window.TWITCH_CLIENT_ID);
+          } else if (window.TWITCH_CLIENT_ID) {
+            console.log('TWITCH_CLIENT_ID already set in window');
           }
-          const twitchClientId: string | undefined = window.TWITCH_CLIENT_ID ?? undefined;
+          
+          // If window.setTwitchClientId exists, use it too
+          if (window.setTwitchClientId && TWITCH_CONFIG.CLIENT_ID) {
+            window.setTwitchClientId(TWITCH_CONFIG.CLIENT_ID);
+          }
+          
           setScriptLoaded(true);
         };
+        
         script.onerror = () => {
           console.error('Failed to load Twitch auth client script');
           setLoadError('Failed to load Twitch authentication script');
         };
+        
         document.body.appendChild(script);
       } catch (err) {
         console.error('Error loading Twitch auth script:', err);
@@ -53,10 +61,7 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
 
     loadScript();
 
-    // Cleanup function
-    return () => {
-      // We don't remove the script on unmount because it's needed globally
-    };
+    // Cleanup function - we don't remove the script as it's needed globally
   }, []);
 
   if (loadError) {
@@ -78,5 +83,17 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
 
   return <>{children}</>;
 };
+
+// Add window augmentation for TypeScript
+declare global {
+  interface Window {
+    loginWithTwitch?: (scopes: string[]) => Promise<any>;
+    validateTwitchToken?: (token: string) => Promise<boolean>;
+    logoutFromTwitch?: (token?: string) => Promise<boolean>;
+    getTwitchAuth?: () => any;
+    setTwitchClientId?: (clientId: string) => void;
+    TWITCH_CLIENT_ID?: string;
+  }
+}
 
 export default TwitchScriptLoader;

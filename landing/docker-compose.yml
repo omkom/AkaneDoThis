@@ -12,7 +12,7 @@ services:
       - /app/node_modules
     command: npm run dev -- --host 0.0.0.0
     ports:
-      - "4173:5173"
+      - "5174:5173"
     environment:
       - NODE_ENV=development
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
@@ -31,7 +31,7 @@ services:
       dockerfile: Dockerfile
     command: npm run build
     volumes:
-      - ./dist:/app/dist
+      - dist_data:/app/dist
     environment:
       - NODE_ENV=production
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
@@ -50,10 +50,13 @@ services:
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
     volumes:
-      - ./dist:/app/dist:ro
+      - dist_data:/app/dist:ro
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 5s
+  
+volumes:
+  dist_data:

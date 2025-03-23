@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
-import TwitchHeroOverlay from './Twitch/TwitchHeroOverlay';
+//import TwitchHeroOverlay from './Twitch/TwitchHeroOverlay';
 import StreamerSpotlight from './Twitch/StreamerSpotlight';
 import './css/hero.css';
 

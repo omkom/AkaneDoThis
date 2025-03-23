@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Improved build script with error logging
+# Script to rebuild and redeploy the website
 LOGFILE="build_log.txt"
 
 # Function to log messages
@@ -18,55 +18,84 @@ check_error() {
 
 # Clear previous log
 echo "" > $LOGFILE
-log "Starting build process..."
+log "Starting rebuild process..."
 
-# Check if .env file exists
-if [ ! -f ".env" ]; then
-  log "WARNING: .env file not found. Creating a template .env file..."
-  cat << EOF > .env
-# Twitch API credentials
-TWITCH_CLIENT_ID=your_client_id_here
-TWITCH_CLIENT_SECRET=your_client_secret_here
-
-# Environment settings
-NODE_ENV=production
-EOF
-  log "Created .env file. Please edit it with your actual credentials before deploying to production."
+# Check if we're in the project root
+if [ ! -d "landing" ]; then
+  log "ERROR: landing directory not found. Make sure you're running this script from the project root."
+  exit 1
 fi
 
-# Ensure the dist directory exists in landing
+# Stop all running containers
+log "Stopping all running containers..."
+docker compose down
+check_error "Failed to stop main containers"
+
+cd landing
+docker compose down
+check_error "Failed to stop landing containers"
+cd ..
+
+# Clean previous build artifacts
+log "Cleaning previous build artifacts..."
+rm -rf landing/dist
+check_error "Failed to clean dist directory"
 mkdir -p landing/dist
-check_error "Failed to create dist directory"
+check_error "Failed to create clean dist directory"
 
-# Run the build process for the landing page
-cd landing || {
-  log "ERROR: Could not change to landing directory"
-  exit 1
-}
+# Clean Docker cache
+log "Cleaning Docker cache..."
+docker builder prune -f
+check_error "Failed to clean Docker builder cache"
 
-# Ensure we have the latest dependencies
-log "Verifying dependencies..."
+# Remove any dangling images
+log "Removing dangling images..."
+docker image prune -f
+check_error "Failed to remove dangling images"
+
+# Rebuild landing Docker image from scratch
+log "Rebuilding landing image from scratch..."
+cd landing
+docker compose build --no-cache build
+check_error "Failed to rebuild landing image"
 docker compose run --rm build npm ci
 check_error "Failed to install dependencies"
 
-# Build the application
-log "Building the application..."
 docker compose run --rm build
 check_error "Build process failed"
 
-# Verify that the build output exists
-if [ ! "$(ls -A dist)" ]; then
-  log "ERROR: Build completed but dist directory is empty!"
-  log "Check the Docker logs for more details: docker compose logs build"
+# Verify build output
+docker compose run --rm build sh -c "[ -f /app/dist/index.html ]"
+if [ $? -ne 0 ]; then
+  log "ERROR: Build failed - index.html not found in container's dist folder"
   exit 1
 fi
+log "Build files verified in container"
 
-# List what was built
-log "Build output files:"
-ls -la dist | tee -a ../$LOGFILE
-
+log "Build completed successfully"
 cd ..
 
-log "Build completed successfully."
-log "You can now start the production environment with ./prod.sh"
-log "If you encounter any issues, check $LOGFILE for details"
+# Clear Nginx cache if exists
+if [ -d "/var/cache/nginx" ]; then
+  log "Clearing Nginx cache..."
+  sudo rm -rf /var/cache/nginx/*
+  check_error "Failed to clear Nginx cache"
+fi
+
+# Start production environment
+log "Starting production environment..."
+docker compose up -d
+check_error "Failed to start production environment"
+
+# Check if website is accessible
+log "Waiting for website to be accessible..."
+sleep 10
+curl -s -o /dev/null -w "%{http_code}" http://localhost | grep 200 > /dev/null
+if [ $? -ne 0 ]; then
+  log "WARNING: Website doesn't appear to be responding with HTTP 200"
+  log "Check logs with: docker compose logs"
+else
+  log "Success! Website is accessible at http://localhost"
+fi
+
+log "Rebuild completed at $(date)"

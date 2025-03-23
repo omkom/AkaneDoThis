@@ -1,95 +1,9 @@
 import React from 'react';
 import { FaYoutube, FaTiktok, FaInstagram, FaDiscord, FaTwitch } from 'react-icons/fa';
 
-/// Define the background style for your element (e.g. a <footer> in React)
-const backgroundStyle = {
-  backgroundImage: "url('/chanel-background-large.png')",
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',  // Centered background image
-  backgroundRepeat: 'no-repeat',
-  backgroundAttachment: 'fixed',
-  position: 'fixed',
-  width: '100%',   // Full width from left to right
-  height: '100vh'  // Full viewport height (adjust as needed)
-};
-
-// Create CSS styles for the parallax, 3D effect, distortion, and transparency
-const animationStyles = `
-  :root {
-    --scroll-y: 0;
-    --mouse-x: 0;
-    --mouse-y: 0;
-    --rotateX: 0deg;
-    --rotateY: 0deg;
-    --skew: 0deg;
-    --opacity: 1;
-  }
-  
-  /* Style the target element (here, a footer) */
-  footer {
-    width: 100%;
-    height: 100vh;
-    /* Background position moves from center plus adjustments */
-    background-position: calc(50% + var(--mouse-x) * 0.5%) calc(50% + var(--scroll-y) * 0.05px + var(--mouse-y) * 0.5%) !important;
-    transition: background-position 0.2s ease-out, transform 0.2s ease-out, opacity 0.2s ease-out;
-    /* 3D perspective with rotation and skew for distortion */
-    transform: perspective(1000px) rotateX(var(--rotateX)) rotateY(var(--rotateY)) skew(var(--skew));
-    opacity: var(--opacity);
-  }
-`;
-
-// Create and append the style element to the document head
-const style = document.createElement('style');
-style.textContent = animationStyles;
-document.head.appendChild(style);
-
-// Update the CSS variable for scroll position
-window.addEventListener('scroll', () => {
-  document.documentElement.style.setProperty('--scroll-y', window.scrollY);
-});
-
-// Update the CSS variables on mouse movement with exponential functions for emphasis
-window.addEventListener('mousemove', (e) => {
-  // Normalize mouse coordinates (range: -0.5 to 0.5)
-  const normalizedX = e.clientX / window.innerWidth - 0.5;
-  const normalizedY = e.clientY / window.innerHeight - 0.5;
-  
-  // Apply exponential emphasis for the parallax effect
-  // Multiplying by 20 increases the movement magnitude; adjust as needed
-  const expMouseX = Math.sign(normalizedX) * Math.pow(Math.abs(normalizedX), 2) * 20;
-  const expMouseY = Math.sign(normalizedY) * Math.pow(Math.abs(normalizedY), 2) * 20;
-  document.documentElement.style.setProperty('--mouse-x', expMouseX);
-  document.documentElement.style.setProperty('--mouse-y', expMouseY);
-  
-  // 3D rotation effect based on mouse position using an exponential curve
-  const maxRotateX = 10; // Maximum rotation in degrees for the X-axis
-  const maxRotateY = 30; // Maximum rotation in degrees for the Y-axis
-  
-  // For rotateX, the effect intensifies exponentially with vertical position.
-  // When the mouse is lower, the element tilts more.
-  const expRotateX = (0.5 - Math.pow(e.clientY / window.innerHeight, 2)) * maxRotateX * 2;
-  // For rotateY, the effect is based on the horizontal position.
-  const expRotateY = (Math.pow(e.clientX / window.innerWidth, 2) - 0.5) * maxRotateY * 2;
-  document.documentElement.style.setProperty('--rotateX', expRotateX + 'deg');
-  document.documentElement.style.setProperty('--rotateY', expRotateY + 'deg');
-  
-  // Distortion: a slight skew effect based on horizontal mouse position with exponential emphasis
-  const maxSkew = 5; // Maximum skew in degrees
-  const expSkew = (Math.pow(e.clientX / window.innerWidth, 2) - 0.5) * maxSkew * 2;
-  document.documentElement.style.setProperty('--skew', expSkew + 'deg');
-  
-  // Transparency: reduce opacity as the mouse moves toward the bottom.
-  // Uses an exponential function to have maximum transparency (lowest opacity) at the bottom.
-  const relativeY = e.clientY / window.innerHeight;
-  const newOpacity = Math.max(1 - Math.pow(relativeY, 2), 0.5);  // Clamp minimum opacity to 0.2
-  document.documentElement.style.setProperty('--opacity', newOpacity);
-});
-
-
 export default function Footer() {
   return (
     <footer className="py-12 bg-black">
-      <div style={backgroundStyle}> </div>
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8">
           <div className="mb-6 md:mb-0">

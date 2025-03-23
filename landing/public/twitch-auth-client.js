@@ -1,5 +1,8 @@
-// Enhanced twitch-auth-client.js
-// Script for handling Twitch authentication on the client side
+/**
+ * Twitch Authentication Client
+ * This script handles Twitch authentication flows and provides utility functions
+ * for interacting with the Twitch API.
+ */
 
 (function() {
   // Configuration
@@ -275,6 +278,15 @@
       localStorage.removeItem(STORAGE_KEY_EXPIRY);
       
       return false;
+    }
+  };
+  
+  // Set the client ID function
+  window.setTwitchClientId = function(clientId) {
+    if (clientId) {
+      TWITCH_CLIENT_ID = clientId;
+      window._TWITCH_CLIENT_ID = clientId;
+      console.log('Twitch Client ID set');
     }
   };
 
