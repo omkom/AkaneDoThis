@@ -1,50 +1,61 @@
-// landing/server/middleware/env-middleware.js
-// Middleware to inject environment variables into HTML
+// Middleware to inject selected environment variables into HTML head as meta tags
 
 /**
- * Create a middleware that injects environment variables into HTML responses
- * This adds meta tags with the environment variables
- * @param {Object} options - Configuration options
- * @param {Object} options.env - Environment variables to inject
+ * Sanitize content for safe HTML attribute injection
+ * @param {string} value - The value to sanitize
+ * @returns {string}
+ */
+function sanitize(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Generate meta tags from selected env variables
+ * @param {Object} env
+ * @returns {string}
+ */
+function generateMetaTags(env) {
+  return Object.entries(env)
+    .filter(([key, val]) => val !== undefined && val !== null)
+    .filter(([key]) => key.startsWith('VITE_') || key.startsWith('TWITCH_') || key.startsWith('PUBLIC_'))
+    .map(([key, val]) => {
+      const safeKey = sanitize(key);
+      const safeVal = sanitize(val);
+      return `<meta name="env-${safeKey}" content="${safeVal}">`;
+    })
+    .join('\n');
+}
+
+/**
+ * Create a middleware to inject meta tags with env variables into HTML responses
+ * @param {Object} options
+ * @param {Object} options.env
  * @returns {Function} Express middleware
  */
-export function createEnvMiddleware(options = {}) {
-    const { env = {} } = options;
-    
-    // Create a snippet with meta tags to inject
-    const metaTags = Object.entries(env)
-      .filter(([key]) => key.startsWith('TWITCH_') || key.startsWith('PUBLIC_'))
-      .map(([key, value]) => {
-        // Skip if the value is undefined or null
-        if (value === undefined || value === null) {
-          return '';
-        }
-        
-        // Create a meta tag with the environment variable
-        return `<meta name="env-${key}" content="${value}">`;
-      })
-      .filter(Boolean)
-      .join('\n');
-    
-    // Return middleware function
-    return function(req, res, next) {
-      // Store original send function
-      const originalSend = res.send;
-      
-      // Override send method to inject meta tags
-      res.send = function(body) {
-        // Only process HTML responses
-        if (typeof body === 'string' && body.includes('<head>') && res.get('Content-Type')?.includes('text/html')) {
-          // Insert meta tags after the head tag
-          body = body.replace('<head>', `<head>\n${metaTags}`);
-        }
-        
-        // Call original send method
-        return originalSend.call(this, body);
-      };
-      
-      next();
+export function createEnvMiddleware({ env = {} } = {}) {
+  const metaTags = generateMetaTags(env);
+
+  return function (req, res, next) {
+    const originalSend = res.send;
+
+    res.send = function (body) {
+      if (
+        typeof body === 'string' &&
+        body.includes('<head>') &&
+        (res.get('Content-Type') || '').includes('text/html')
+      ) {
+        body = body.replace('<head>', `<head>\n${metaTags}`);
+      }
+
+      return originalSend.call(this, body);
     };
-  }
-  
-  export default createEnvMiddleware;
+
+    next();
+  };
+}
+
+export default createEnvMiddleware;

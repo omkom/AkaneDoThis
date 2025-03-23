@@ -41,8 +41,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - VITE_TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
     volumes:
       - dist_data:/app/dist:ro
     networks:

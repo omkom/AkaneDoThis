@@ -24,6 +24,6 @@ export default defineConfig({
   },
   define: {
     // Make environment variables available
-    'process.env.VITE_TWITCH_CLIENT_ID': JSON.stringify(process.env.VITE_TWITCH_CLIENT_ID || process.env.TWITCH_CLIENT_ID)
+    'import.meta.env.VITE_TWITCH_CLIENT_ID': JSON.stringify(process.env.VITE_TWITCH_CLIENT_ID || process.env.TWITCH_CLIENT_ID)
   }
 });

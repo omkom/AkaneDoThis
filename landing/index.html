@@ -2,52 +2,72 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-NK5TM487');</script>
-    <!-- End Google Tag Manager -->
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AkaneDoThis</title>
-    <!-- Modern Typography - Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- Google Tag Manager -->
+    <script async>
+      (function(w, d, s, l, i) {
+        w[l] = w[l] || [];
+        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+        var f = d.getElementsByTagName(s)[0],
+            j = d.createElement(s),
+            dl = l !== 'dataLayer' ? '&l=' + l : '';
+        j.async = true;
+        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+        f.parentNode.insertBefore(j, f);
+      })(window, document, 'script', 'dataLayer', 'GTM-NK5TM487');
+    </script>
+    <!-- End Google Tag Manager -->
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
     <!-- Easter Egg Script -->
-    <script src="/js/cubi-easter-egg.js"></script>
-    <!-- Add script before main script loads to initialize environment variables -->
+    <script defer src="/js/cubi-easter-egg.js"></script>
+
+    <!-- Environment Variable Loader -->
     <script>
       window.ENV = window.ENV || {};
-      
-      // Extract environment variables from meta tags
-      document.addEventListener('DOMContentLoaded', function() {
-        const envVars = document.querySelectorAll('meta[name^="env-"]');
-        envVars.forEach(function(metaTag) {
-          const name = metaTag.getAttribute('name').replace('env-', '');
-          const value = metaTag.getAttribute('content');
-          if (name && value) {
-            window.ENV[name] = value;
-            
-            // Set up Twitch client ID
-            if (name === 'TWITCH_CLIENT_ID') {
-              window.TWITCH_CLIENT_ID = value;
+      document.addEventListener('DOMContentLoaded', () => {
+        document
+          .querySelectorAll('meta[name^="env-"]')
+          .forEach((meta) => {
+            const name = meta.getAttribute('name')?.replace('env-', '');
+            const value = meta.getAttribute('content');
+            if (name && value) {
+              window.ENV[name] = value;
+              if (name === 'TWITCH_CLIENT_ID') {
+                window.TWITCH_CLIENT_ID = value;
+              }
             }
-          }
-        });
-        
-        console.log('Environment variables loaded:', window.ENV);
+          });
+        console.log('[ENV] Loaded:', window.ENV);
       });
     </script>
   </head>
+
   <body>
     <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NK5TM487"
-    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <noscript>
+      <iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-NK5TM487"
+        height="0"
+        width="0"
+        style="display:none;visibility:hidden"
+      ></iframe>
+    </noscript>
     <!-- End Google Tag Manager (noscript) -->
+
     <div id="root"></div>
+
+    <!-- Main App Entry -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
