@@ -1,6 +1,4 @@
 // landing/services/twitch/twitch-api.ts
-// Optimized Twitch API service with improved performance
-
 import { TWITCH_CONFIG } from './twitch-client';
 import { getBestAvailableToken } from './twitch-auth';
 import {
@@ -11,15 +9,12 @@ import {
   TwitchFollowers,
   TwitchChannelData,
   TwitchResponse,
-  TwitchSubscription
+  TwitchSubscription,
+  TwitchVIPData
 } from './twitch-types';
 
 /**
  * Enhanced request function for Twitch API with optimized caching and retry logic
- * @param endpoint - API endpoint (without /helix prefix)
- * @param options - Request options
- * @param retryCount - Current retry attempt (internal use)
- * @returns API response data
  */
 export async function twitchRequest<T>(
   endpoint: string,
@@ -168,17 +163,8 @@ export async function twitchRequest<T>(
   }
 }
 
-// Global cache declaration for TypeScript
-declare global {
-  interface Window {
-    _twitchApiCache?: Map<string, { data: any; expiry: number }>;
-  }
-}
-
 /**
  * Get broadcaster information by login name
- * @param login - Broadcaster's login name
- * @returns Broadcaster data or null if not found
  */
 export async function getBroadcasterByLogin(login: string): Promise<TwitchUserData | null> {
   try {
@@ -202,8 +188,6 @@ export async function getBroadcasterByLogin(login: string): Promise<TwitchUserDa
 
 /**
  * Get stream information for a channel
- * @param channelName - Channel login name
- * @returns Stream data or null if offline
  */
 export async function getStreamInfo(channelName: string): Promise<TwitchStream | null> {
   try {
@@ -225,8 +209,6 @@ export async function getStreamInfo(channelName: string): Promise<TwitchStream |
 
 /**
  * Get channel information
- * @param broadcasterId - Broadcaster's ID
- * @returns Channel data or null if error
  */
 export async function getChannelInfo(broadcasterId: string): Promise<TwitchChannel | null> {
   try {
@@ -252,9 +234,6 @@ export async function getChannelInfo(broadcasterId: string): Promise<TwitchChann
 
 /**
  * Get followers information
- * @param broadcasterId - Broadcaster's ID
- * @param options - Optional parameters (first, after)
- * @returns Followers data
  */
 export async function getFollowers(
   broadcasterId: string,
@@ -282,10 +261,6 @@ export async function getFollowers(
 
 /**
  * Check if a user follows a channel
- * @param userId - User ID
- * @param broadcasterId - Broadcaster ID
- * @param token - Optional auth token
- * @returns True if following, false otherwise
  */
 export async function checkFollowing(
   userId: string, 
@@ -315,11 +290,6 @@ export async function checkFollowing(
 
 /**
  * Follow a channel
- * @param userId - User ID
- * @param broadcasterId - Broadcaster ID
- * @param notifications - Enable notifications
- * @param userToken - User's OAuth token
- * @returns True if successful
  */
 export async function followChannel(
   userId: string,
@@ -357,10 +327,6 @@ export async function followChannel(
 
 /**
  * Unfollow a channel
- * @param userId - User ID
- * @param broadcasterId - Broadcaster ID
- * @param userToken - User's OAuth token
- * @returns True if successful
  */
 export async function unfollowChannel(
   userId: string,
@@ -396,9 +362,6 @@ export async function unfollowChannel(
 
 /**
  * Get channel subscription count
- * @param broadcasterId - Broadcaster's ID
- * @param userToken - User's OAuth token with channel:read:subscriptions scope
- * @returns Subscriber count or null if error/unauthorized
  */
 export async function getSubscriptionCount(
   broadcasterId: string,
@@ -429,10 +392,6 @@ export async function getSubscriptionCount(
 
 /**
  * Check if the user is subscribed to a channel
- * @param broadcasterId - Broadcaster's ID
- * @param userId - User's ID
- * @param userToken - User's OAuth token
- * @returns Subscription data or null if not subscribed or error
  */
 export async function checkSubscription(
   broadcasterId: string,
@@ -468,10 +427,34 @@ export async function checkSubscription(
 }
 
 /**
- * Get combined channel data (stream, channel info, followers, VIPs)
- * @param {string} channelName - Channel login name
- * @param {string} userToken - Optional user token for VIP data
- * @returns {Promise<TwitchChannelData>} Combined channel data
+ * Get VIPs for a channel
+ */
+export async function getChannelVIPs(
+  broadcasterId: string,
+  options: { user_id?: string[]; first?: number; after?: string } = {},
+  userToken: string
+): Promise<TwitchResponse<TwitchVIPData>> {
+  try {
+    if (!broadcasterId || !userToken) {
+      return { data: [] };
+    }
+    
+    return await twitchRequest<TwitchResponse<TwitchVIPData>>('channels/vips', {
+      userToken,
+      requiresUserToken: true,
+      params: {
+        broadcaster_id: broadcasterId,
+        ...options
+      }
+    });
+  } catch (error) {
+    console.error('Error getting channel VIPs:', error);
+    return { data: [] };
+  }
+}
+
+/**
+ * Get combined channel data (stream, channel info, followers, subscription count)
  */
 export async function getChannelData(
   channelName: string,
@@ -504,6 +487,7 @@ export async function getChannelData(
       channel: channelInfo,
       followers: followersInfo,
       isLive,
+      subscriberCount: null,
       stats: {
         followerCount: followersInfo.total || 0,
         viewerCount: isLive ? streamInfo?.viewer_count || 0 : 0,
@@ -515,18 +499,24 @@ export async function getChannelData(
       }
     };
     
-    // If user token provided, try to fetch VIPs data
+    // If user token provided, try to fetch subscription count
     if (userToken) {
       try {
-        const vipsData = await getChannelVIPs(broadcasterId, {}, userToken);
+        // Try to get subscription count
+        const subCount = await getSubscriptionCount(broadcasterId, userToken);
+        if (subCount !== null) {
+          channelData.subscriberCount = subCount;
+        }
         
+        // Try to fetch VIPs data
+        const vipsData = await getChannelVIPs(broadcasterId, {}, userToken);
         if (vipsData && vipsData.data) {
           channelData.vips = vipsData.data;
           channelData.stats.vipCount = vipsData.data.length;
         }
-      } catch (vipError) {
-        console.warn('Error fetching VIPs data:', vipError);
-        // Continue without VIPs data
+      } catch (subError) {
+        console.warn('Error fetching subscription data:', subError);
+        // Continue without subscription data
       }
     }
     
@@ -537,91 +527,9 @@ export async function getChannelData(
   }
 }
 
-// Add these functions to the existing services/twitch/twitch-api.ts file
-
-/**
- * Get VIPs for a channel
- * @param {string} broadcasterId - Broadcaster's ID
- * @param {Object} options - Optional parameters
- * @param {string} userToken - User's OAuth token with channel:read:vips scope
- * @returns {Promise<TwitchResponse<TwitchVIPData>>} VIPs data
- */
-export async function getChannelVIPs(
-  broadcasterId: string,
-  options: { user_id?: string[]; first?: number; after?: string } = {},
-  userToken: string
-): Promise<TwitchResponse<TwitchVIPData>> {
-  try {
-    return await twitchRequest<TwitchResponse<TwitchVIPData>>('channels/vips', {
-      userToken,
-      requiresUserToken: true,
-      params: {
-        broadcaster_id: broadcasterId,
-        ...options
-      }
-    });
-  } catch (error) {
-    console.error('Error getting channel VIPs:', error);
-    return { data: [] };
-  }
-}
-
-/**
- * Add a channel VIP
- * @param {string} broadcasterId - Broadcaster's ID
- * @param {string} userId - User ID to make VIP
- * @param {string} userToken - User's OAuth token with channel:manage:vips scope
- * @returns {Promise<boolean>} Success status
- */
-export async function addChannelVIP(
-  broadcasterId: string,
-  userId: string,
-  userToken: string
-): Promise<boolean> {
-  try {
-    await twitchRequest('channels/vips', {
-      method: 'POST',
-      userToken,
-      requiresUserToken: true,
-      params: {
-        broadcaster_id: broadcasterId,
-        user_id: userId
-      }
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Error adding VIP:', error);
-    return false;
-  }
-}
-
-/**
- * Remove a channel VIP
- * @param {string} broadcasterId - Broadcaster's ID
- * @param {string} userId - User ID to remove as VIP
- * @param {string} userToken - User's OAuth token with channel:manage:vips scope
- * @returns {Promise<boolean>} Success status
- */
-export async function removeChannelVIP(
-  broadcasterId: string,
-  userId: string,
-  userToken: string
-): Promise<boolean> {
-  try {
-    await twitchRequest('channels/vips', {
-      method: 'DELETE',
-      userToken,
-      requiresUserToken: true,
-      params: {
-        broadcaster_id: broadcasterId,
-        user_id: userId
-      }
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Error removing VIP:', error);
-    return false;
+// Add a global declaration for the cache
+declare global {
+  interface Window {
+    _twitchApiCache?: Map<string, { data: any; expiry: number }>;
   }
 }
