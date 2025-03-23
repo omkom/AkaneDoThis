@@ -149,7 +149,7 @@ export interface TwitchAuthData {
   export interface TwitchRequestOptions {
     method?: string;
     params?: Record<string, string | number | boolean | undefined | null>;
-    data?: any;
+    data?: Record<string, unknown>;
     token?: string | null;
     userToken?: string | null;
   }

@@ -1,4 +1,4 @@
-// vite.config.js
+// vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import dotenv from 'dotenv';
@@ -14,9 +14,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Proxy API requests to Express server
+      // Proxy API requests to Express server running on port 3000
       '/api': {
-        target: 'http://api:3000',
+        target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false
       }
@@ -24,6 +24,6 @@ export default defineConfig({
   },
   define: {
     // Make environment variables available
-    'process.env.VITE_TWITCH_CLIENT_ID': JSON.stringify(process.env.VITE_TWITCH_CLIENT_ID)
+    'process.env.VITE_TWITCH_CLIENT_ID': JSON.stringify(process.env.VITE_TWITCH_CLIENT_ID || process.env.TWITCH_CLIENT_ID)
   }
 });

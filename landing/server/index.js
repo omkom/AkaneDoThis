@@ -1,15 +1,12 @@
 // landing/server/index.js
-// Express server for handling Twitch API routes
+// Combined Express server for handling both API routes and serving the app
 
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import twitchRoutes from './routes/twitch.js';
-import healthRoutes from './routes/health.js';
+import axios from 'axios';
 import createEnvMiddleware from './middleware/env-middleware.js';
-import cors from 'cors';
 
 // Load environment variables
 dotenv.config();
@@ -28,63 +25,132 @@ const clientEnv = {
   PUBLIC_API_URL: process.env.PUBLIC_API_URL || '',
 };
 
-// Enable debugging
-const DEBUG = process.env.DEBUG === 'true';
-if (DEBUG) {
-  console.log('Server starting with environment:', {
-    NODE_ENV: process.env.NODE_ENV,
-    PORT,
-    TWITCH_CLIENT_ID: process.env.TWITCH_CLIENT_ID ? '✓ Set' : '✗ Not set',
-    TWITCH_CLIENT_SECRET: process.env.TWITCH_CLIENT_SECRET ? '✓ Set' : '✗ Not set',
-  });
-}
-
-// CORS configuration
-app.use(cors({
-  origin: ['http://localhost:5174', 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:80'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-
 // Apply environment middleware
 app.use(createEnvMiddleware({ env: clientEnv }));
 
 // Parse JSON request bodies
 app.use(express.json());
 
-// Health check route
-app.use('/api', healthRoutes);
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    api: 'Twitch integration API'
+  });
+});
 
-// API routes
-app.use('/api/twitch', twitchRoutes);
-
-// Dynamic import for app-token.js to handle both file locations
-const APP_TOKEN_PATH = path.resolve(__dirname, '../api/twitch/app-token.js');
-if (DEBUG) {
-  console.log('Checking for app-token.js at:', APP_TOKEN_PATH);
-  console.log('File exists:', fs.existsSync(APP_TOKEN_PATH));
-}
-
-// Handle app-token API endpoint
+// Twitch API token endpoint
 app.post('/api/twitch/app-token', async (req, res) => {
   try {
-    // Dynamically import the app-token.js module
-    const appTokenModule = await import('../api/twitch/app-token.js');
-    await appTokenModule.default(req, res);
+    // Get environment variables
+    const clientId = process.env.TWITCH_CLIENT_ID;
+    const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) {
+      console.error('Missing Twitch API credentials');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
+    // Request a token from Twitch API
+    const response = await axios.post(
+      'https://id.twitch.tv/oauth2/token',
+      null,
+      {
+        params: {
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: 'client_credentials'
+        }
+      }
+    );
+
+    // Return token to client
+    return res.status(200).json({
+      access_token: response.data.access_token,
+      expires_in: response.data.expires_in
+    });
+    
   } catch (error) {
-    console.error('Error handling app-token request:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    console.error('Error in app-token endpoint:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Serve static files from the dist directory (for production)
-app.use(express.static(path.join(__dirname, '../dist')));
-
-// For all other routes, serve the index.html file
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
+// Proxy endpoint for Twitch API requests
+app.get('/api/twitch/:endpoint', async (req, res) => {
+  try {
+    const { endpoint } = req.params;
+    const clientId = process.env.TWITCH_CLIENT_ID;
+    
+    if (!clientId) {
+      return res.status(500).json({ error: 'Missing Twitch client ID' });
+    }
+    
+    // Get token from Twitch
+    const tokenResponse = await axios.post(
+      'https://id.twitch.tv/oauth2/token',
+      null,
+      {
+        params: {
+          client_id: clientId,
+          client_secret: process.env.TWITCH_CLIENT_SECRET,
+          grant_type: 'client_credentials'
+        }
+      }
+    );
+    
+    const accessToken = tokenResponse.data.access_token;
+    
+    // Forward the request to Twitch API
+    const twitchResponse = await axios.get(`https://api.twitch.tv/helix/${endpoint}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Client-ID': clientId
+      },
+      params: req.query
+    });
+    
+    return res.json(twitchResponse.data);
+  } catch (error) {
+    console.error(`Error proxying Twitch API request:`, error.message);
+    return res.status(error.response?.status || 500).json({ 
+      error: error.response?.data || 'Internal server error' 
+    });
+  }
 });
+
+// Dev environment: proxy to Vite
+if (process.env.NODE_ENV === 'development') {
+  console.log('Running in development mode, proxying to Vite dev server');
+  
+  // For development, proxy requests to Vite dev server
+  app.use('/', async (req, res) => {
+    try {
+      const response = await axios({
+        url: `http://localhost:5173${req.url}`,
+        method: req.method,
+        headers: req.headers,
+        data: req.body,
+        responseType: 'stream'
+      });
+      
+      response.data.pipe(res);
+    } catch (error) {
+      console.error('Error proxying to Vite:', error.message);
+      res.status(500).send('Error connecting to Vite dev server');
+    }
+  });
+} else {
+  // Production: serve static files
+  app.use(express.static(path.join(__dirname, '../dist')));
+  
+  // For all other routes, serve the index.html file
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+}
 
 // Start the server
 app.listen(PORT, () => {

@@ -1,8 +1,8 @@
-# Landing page docker-compose file
+# Simplified landing page docker-compose file
 version: '3.8'
 
 services:
-  # Development service with hot-reload
+  # Combined development service
   dev:
     build:
       context: .
@@ -10,47 +10,20 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: npm run dev -- --host 0.0.0.0
     ports:
-      - "5174:5173"
+      - "5174:5173" # Vite dev server
+      - "3000:3000" # API server
     environment:
       - NODE_ENV=development
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:5173"]
-      interval: 20s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-    depends_on:
-      - api
-
-  # API server for backend services
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - ./api:/app/api
-    ports:
-      - "3000:3000"
-    command: node server/index.js
-    environment:
-      - NODE_ENV=development
-      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-      - PORT=3000
-      - DEBUG=true
+    command: sh -c "npm run dev -- --host 0.0.0.0 & node server/index.js & wait"
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
       interval: 20s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
   # Build service for creating production assets
   build:
@@ -65,14 +38,14 @@ services:
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
 
-  # Production service to serve static files
-  serve:
+  # Production service (combined server)
+  prod:
     build:
       context: .
       dockerfile: Dockerfile
-    command: npx serve -s dist
+    command: node server/index.js
     ports:
-      - "3001:3000"
+      - "3000:3000"
     environment:
       - NODE_ENV=production
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
@@ -80,7 +53,7 @@ services:
     volumes:
       - dist_data:/app/dist:ro
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3000"]
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -88,5 +61,3 @@ services:
   
 volumes:
   dist_data:
-    external: true
-    name: landing_dist_data

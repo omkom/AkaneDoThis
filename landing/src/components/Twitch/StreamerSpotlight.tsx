@@ -18,11 +18,18 @@ interface TwitchUserData {
   created_at: string;
 }
 
+interface TwitchFollower {
+  user_id: string;
+  user_login: string;
+  user_name: string;
+  followed_at: string;
+}
+
 interface TwitchChannelData {
   broadcaster: TwitchUserData | null;
   stream: any | null;
   channel: any | null;
-  followers: { total: number; data: any[] };
+  followers: { total: number; data: TwitchFollower[] };
   isLive: boolean;
   stats: {
     followerCount: number;
