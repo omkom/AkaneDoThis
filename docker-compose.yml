@@ -43,11 +43,7 @@ services:
       - VITE_TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
     command: >
       sh -c "
-        if [ ! -f 'index.html' ]; then
-          echo 'Creating index.html file...'
-          echo '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /><title>AkaneDoThis</title></head><body><div id=\"root\"></div><script type=\"module\" src=\"/src/main.tsx\"></script></body></html>' > index.html;
-        fi &&
-        mkdir -p dist &&
+        mkdir -p /app/dist &&
         npm run build &&
         echo 'Build completed. Copying to volume...'
       "

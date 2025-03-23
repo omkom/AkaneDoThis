@@ -1,7 +1,8 @@
 #!/bin/bash
-# Enhanced build script with proper error handling and environment variable checking
 
-set -e  # Exit on first error
+# Enhanced build script with improved error handling, environment variable checking, and logging
+
+set -e  # Exit immediately if a command exits with a non-zero status
 
 # Configuration
 LOGFILE="build_log.txt"
@@ -52,7 +53,7 @@ if [ ! -f "$ENV_FILE" ]; then
 else
   # Source the environment file
   source $ENV_FILE
-  
+
   # Check for required variables
   if [ -z "$TWITCH_CLIENT_ID" ] || [ -z "$TWITCH_CLIENT_SECRET" ]; then
     log "WARNING: Missing required environment variables in .env file"
@@ -90,9 +91,9 @@ docker volume rm akane_landing_dist_data || true
 
 # Clean previous build artifacts
 log "Cleaning previous build artifacts..."
-#rm -rf landing/dist
+rm -rf landing/dist
 check_error "Failed to clean dist directory"
-#mkdir -p landing/dist
+mkdir -p landing/dist
 check_error "Failed to create clean dist directory"
 
 # Clean Docker cache
@@ -105,7 +106,6 @@ log "Removing dangling images..."
 docker image prune -f
 check_error "Failed to remove dangling images"
 
-
 # Rebuild landing Docker image from scratch
 log "Rebuilding landing image from scratch..."
 cd landing
@@ -115,33 +115,18 @@ export TWITCH_CLIENT_ID
 export TWITCH_CLIENT_SECRET
 
 # Rebuild with additional diagnostics
-echo "🔄 Rebuilding Docker containers with improved diagnostics..."
+log "Rebuilding Docker containers with improved diagnostics..."
 docker compose build --no-cache build
 check_error "Failed to rebuild Docker image"
 
 # Run the build command to generate the dist directory
-echo "🚀 Running build process..."
-docker compose run --rm build
-#check_error "Build process failed"
-
-# Check if the build succeeded
-if [ $? -eq 0 ]; then
-  echo "✅ Build process completed successfully"
-  echo "🔍 Checking dist volume..."
-  docker run --rm -v akane_landing_dist_data:/dist alpine ls -la /dist
-  
-  echo "🚀 Starting production environment..."
-  docker compose up -d prod nginx
-  echo "✅ System is now running"
-  echo "🌐 Access the site at http://localhost:80"
-else
-  echo "❌ Build process failed"
-  echo "📋 Checking for additional diagnostic information..."
-  docker-compose logs build
-fi
+log "Running build process..."
+docker compose run --rm build npm ci
+check_error "Build process failed"
 
 # Verify build output
 log "Verifying build output..."
+docker compose run --rm build sh -c "[ -f /app/dist/index.html ]"
 if [ ! -f "dist/index.html" ]; then
   log "ERROR: Build failed - index.html not found in dist folder"
   exit 1
