@@ -17,9 +17,9 @@ function getClientId(): string {
     }
   }
   
-  // Try Vite env variables
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TWITCH_CLIENT_ID) {
-    return import.meta.env.VITE_TWITCH_CLIENT_ID;
+  // Try process.env for environment variables (Node.js environments)
+  if (typeof process !== 'undefined' && process.env && process.env.VITE_TWITCH_CLIENT_ID) {
+    return process.env.VITE_TWITCH_CLIENT_ID;
   }
   
   // Fallback for development

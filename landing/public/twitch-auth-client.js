@@ -22,6 +22,7 @@
       'user:read:follows', 
       'user:edit:follows', 
       'user:read:subscriptions',
+      'moderator:read:followers', 
       'channel:read:subscriptions',
       'channel:read:vips',      // Add this line for VIP reading
     ]
