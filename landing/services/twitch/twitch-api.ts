@@ -17,6 +17,7 @@ import {
 /**
  * Enhanced request function for Twitch API with optimized caching and retry logic
  */
+// 1. Fix for twitchRequest in twitch-api.ts to handle cache properly
 export async function twitchRequest<T>(
   endpoint: string,
   options: TwitchRequestOptions = {},
@@ -49,7 +50,12 @@ export async function twitchRequest<T>(
   }
   
   // Cache support - check if we have a cache key and should try to get cached data
-  if (cacheKey && method === 'GET' && window._twitchApiCache) {
+  if (cacheKey && method === 'GET' && typeof window !== 'undefined') {
+    // Initialize the cache if it doesn't exist
+    if (!window._twitchApiCache) {
+      window._twitchApiCache = new Map();
+    }
+    
     const cachedData = window._twitchApiCache.get(cacheKey);
     if (cachedData) {
       const { data: cacheData, expiry } = cachedData;
@@ -144,7 +150,7 @@ export async function twitchRequest<T>(
     const responseData = await response.json() as T;
     
     // Store in cache if we have a cache key
-    if (cacheKey && method === 'GET') {
+    if (cacheKey && method === 'GET' && typeof window !== 'undefined') {
       if (!window._twitchApiCache) {
         window._twitchApiCache = new Map();
       }

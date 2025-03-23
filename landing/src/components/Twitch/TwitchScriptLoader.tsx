@@ -22,7 +22,7 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
       setScriptLoaded(true);
       return;
     }
-
+  
     const loadScript = () => {
       try {
         // Create script element
@@ -30,8 +30,22 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
         script.src = '/twitch-auth-client.js';
         script.async = true;
         
+        // Set timeout to detect script loading failures
+        const timeoutId = setTimeout(() => {
+          console.error('Twitch auth script loading timed out');
+          setLoadError('Twitch authentication script failed to load (timeout)');
+        }, 10000); // 10 second timeout
+        
         script.onload = () => {
+          clearTimeout(timeoutId);
           console.log('Twitch auth client script loaded successfully');
+          
+          // Additional check to verify the script actually loaded the expected functions
+          if (!window.loginWithTwitch) {
+            console.error('Script loaded but loginWithTwitch function is missing');
+            setLoadError('Twitch authentication not initialized correctly');
+            return;
+          }
           
           // Set the client ID if not already set
           if (!window.TWITCH_CLIENT_ID && TWITCH_CONFIG.CLIENT_ID) {
@@ -50,6 +64,7 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
         };
         
         script.onerror = () => {
+          clearTimeout(timeoutId);
           console.error('Failed to load Twitch auth client script');
           setLoadError('Failed to load Twitch authentication script');
         };
@@ -60,9 +75,9 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
         setLoadError('Error initializing Twitch authentication');
       }
     };
-
+  
     loadScript();
-
+  
     // Cleanup function - we don't remove the script as it's needed globally
   }, []);
 

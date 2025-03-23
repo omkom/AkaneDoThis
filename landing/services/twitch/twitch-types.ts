@@ -132,6 +132,7 @@ export interface TwitchAuthData {
     channel: TwitchChannel | null;
     followers: TwitchFollowers;
     vips?: TwitchVIPData[];
+    schedule?: TwitchSchedule;  // Add schedule property that was missing
     isLive: boolean;
     subscriberCount: number | null;
     stats: {

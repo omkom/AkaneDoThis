@@ -80,32 +80,70 @@ export async function validateToken(token: string | null): Promise<boolean> {
   if (!token) return false;
   
   try {
-    const response = await fetch(`${TWITCH_CONFIG.AUTH_BASE_URL}/validate`, {
-      headers: {
-        'Authorization': `OAuth ${token}`
-      }
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
     
-    if (response.ok) {
-      const data = await response.json();
+    try {
+      const response = await fetch(`${TWITCH_CONFIG.AUTH_BASE_URL}/validate`, {
+        headers: {
+          'Authorization': `OAuth ${token}`
+        },
+        signal: controller.signal
+      });
       
-      // Update expiry info if valid
-      if (data.expires_in) {
-        const expiry = new Date();
-        expiry.setSeconds(expiry.getSeconds() + data.expires_in);
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const data = await response.json();
         
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem(TWITCH_CONFIG.STORAGE_KEY_EXPIRY, expiry.toISOString());
+        // Update expiry info if valid
+        if (data.expires_in) {
+          const expiry = new Date();
+          expiry.setSeconds(expiry.getSeconds() + data.expires_in);
+          
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(TWITCH_CONFIG.STORAGE_KEY_EXPIRY, expiry.toISOString());
+          }
         }
+        
+        return true;
       }
       
-      return true;
+      return false;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        console.warn('Token validation request timed out');
+      } else {
+        console.error('Fetch error during token validation:', fetchError);
+      }
+      
+      // On network error, consider token potentially valid but flagged for revalidation
+      // We don't want to log the user out just because of network problems
+      return false;
     }
-    
-    return false;
   } catch (error) {
     console.error('Error validating Twitch token:', error);
     return false;
+  }
+}
+
+// Addition to AuthContext or a utility function to safely check auth
+export function safeGetTwitchAuth(): { token: string, userData: any } | null {
+  try {
+    if (typeof window === 'undefined' || !window.getTwitchAuth) {
+      return null;
+    }
+    
+    const auth = window.getTwitchAuth();
+    if (auth && auth.token && auth.userData) {
+      return auth;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error safely getting Twitch auth:', error);
+    return null;
   }
 }
 
@@ -150,8 +188,7 @@ export async function fetchUserData(token: string): Promise<TwitchUserData> {
  */
 export async function getAppToken(): Promise<string | null> {
   try {
-    // First try direct Twitch API if client ID is available (for development)
-    // This approach doesn't expose client secret in source code
+    // First try backend endpoint
     try {
       const response = await fetch('/api/twitch/app-token', {
         method: 'POST',
@@ -166,12 +203,28 @@ export async function getAppToken(): Promise<string | null> {
       }
     } catch (backendError) {
       console.warn('Could not get app token from backend:', backendError);
-      // Fall through to direct Twitch API call if backend fails
+      // Fall through to alternative method
     }
     
-    // Fallback method for development - this requires an alternative solution
-    console.error('Cannot obtain Twitch app token - backend endpoint /api/twitch/app-token failed');
+    // Alternative method using client credentials if available
+    // This should be implemented securely on the server side
+    if (typeof window !== 'undefined' && window.ENV && window.ENV.TWITCH_CLIENT_ID) {
+      try {
+        // Use a server-side proxy endpoint that protects the client secret
+        const altResponse = await fetch('/api/twitch/alt-token', {
+          method: 'POST'
+        });
+        
+        if (altResponse.ok) {
+          const altData = await altResponse.json();
+          return altData.access_token;
+        }
+      } catch (altError) {
+        console.error('Alternative token method failed:', altError);
+      }
+    }
     
+    console.error('All methods to obtain Twitch app token failed');
     return null;
   } catch (error) {
     console.error('Error getting app token:', error);

@@ -5,27 +5,48 @@
  * Safely get client ID from various sources
  */
 function getClientId(): string {
-  if (typeof window !== 'undefined') {
-    // Try window.ENV first (set by server-side)
-    if (window.ENV?.TWITCH_CLIENT_ID) {
-      return window.ENV.TWITCH_CLIENT_ID as string;
+  try {
+    if (typeof window !== 'undefined') {
+      // Try window.ENV first (set by server-side)
+      if (window.ENV?.TWITCH_CLIENT_ID) {
+        const id = window.ENV.TWITCH_CLIENT_ID as string;
+        if (id && typeof id === 'string' && id.length > 0) {
+          return id;
+        }
+      }
+      
+      // Try window.TWITCH_CLIENT_ID (set by twitch-auth-client.js)
+      if (window.TWITCH_CLIENT_ID && typeof window.TWITCH_CLIENT_ID === 'string' && window.TWITCH_CLIENT_ID.length > 0) {
+        return window.TWITCH_CLIENT_ID;
+      }
     }
     
-    // Try window.TWITCH_CLIENT_ID (set by twitch-auth-client.js)
-    if (window.TWITCH_CLIENT_ID) {
-      return window.TWITCH_CLIENT_ID;
+    // Try process.env for environment variables (Node.js environments)
+    if (typeof process !== 'undefined' && process.env && process.env.VITE_TWITCH_CLIENT_ID) {
+      return process.env.VITE_TWITCH_CLIENT_ID;
     }
+    
+    // If we get here, we couldn't find a valid client ID
+    console.warn('Could not find a valid Twitch client ID in any environment');
+    
+    // For development environments only, provide a fallback
+    if (process.env.NODE_ENV === 'development') {
+      const fallbackId = "udrg080q6g8t7qbhgo67x0ytt08otn"; // Demo/placeholder
+      console.warn(`Using fallback Twitch client ID: ${fallbackId}`);
+      return fallbackId;
+    }
+    
+    // In production, throw an error instead of using a fallback
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('No Twitch client ID found in production environment');
+    }
+    
+    return '';
+  } catch (error) {
+    console.error('Error getting Twitch client ID:', error);
+    // In production, you might want to report this to your error tracking service
+    return '';
   }
-  
-  // Try process.env for environment variables (Node.js environments)
-  if (typeof process !== 'undefined' && process.env && process.env.VITE_TWITCH_CLIENT_ID) {
-    return process.env.VITE_TWITCH_CLIENT_ID;
-  }
-  
-  // Fallback for development
-  const fallbackId = "udrg080q6g8t7qbhgo67x0ytt08otn"; // Demo/placeholder
-  console.warn(`Using fallback Twitch client ID: ${fallbackId}`);
-  return fallbackId;
 }
 
 /**
