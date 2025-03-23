@@ -23,6 +23,31 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+    depends_on:
+      - api
+
+  # API server for backend services
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: node server/index.js
+    environment:
+      - NODE_ENV=development
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # Build service for creating production assets
   build:
@@ -44,7 +69,7 @@ services:
       dockerfile: Dockerfile
     command: npx serve -s dist
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - NODE_ENV=production
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}

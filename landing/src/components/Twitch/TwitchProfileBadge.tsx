@@ -16,17 +16,10 @@ interface TwitchAuthData {
   userData: TwitchUserData;
 }
 
-// Declare global types for Twitch API functions
-declare global {
-  interface Window {
-    loginWithTwitch?: (scopes: string[]) => Promise<TwitchAuthData>;
-    validateTwitchToken?: (token: string) => Promise<boolean>;
-    logoutFromTwitch?: (token?: string) => Promise<boolean>;
-    getTwitchAuth?: () => TwitchAuthData | null;
-    TWITCH_CLIENT_ID?: string;
-  }
-}
-
+/**
+ * TwitchProfileBadge Component
+ * Displays the user's Twitch profile and provides login/logout functionality
+ */
 const TwitchProfileBadge: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);

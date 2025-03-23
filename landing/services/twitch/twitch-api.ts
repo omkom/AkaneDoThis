@@ -1,86 +1,30 @@
-/**
- * Twitch API service
- */
+// services/twitch/twitch-api.ts
+// Core Twitch API service with consistent error handling and retry logic
+
 import { TWITCH_CONFIG } from './twitch-client';
 import { getBestAvailableToken } from './twitch-auth';
-
-interface RequestOptions {
-  method?: string;
-  params?: Record<string, string | number | boolean | undefined | null>;
-  data?: any;
-  token?: string | null;
-  userToken?: string | null;
-}
-
-export interface TwitchChannel {
-  broadcaster_id: string;
-  broadcaster_login: string;
-  broadcaster_name: string;
-  broadcaster_language: string;
-  game_id: string;
-  game_name: string;
-  title: string;
-  delay: number;
-  tags: string[];
-}
-
-export interface TwitchStream {
-  id: string;
-  user_id: string;
-  user_login: string;
-  user_name: string;
-  game_id: string;
-  game_name: string;
-  type: string;
-  title: string;
-  viewer_count: number;
-  started_at: string;
-  language: string;
-  thumbnail_url: string;
-  tag_ids: string[];
-  tags: string[];
-  is_mature: boolean;
-}
-
-export interface TwitchBroadcaster {
-  id: string;
-  login: string;
-  display_name: string;
-  type: string;
-  broadcaster_type: string;
-  description: string;
-  profile_image_url: string;
-  offline_image_url: string;
-  view_count: number;
-  created_at: string;
-}
-
-export interface TwitchFollowers {
-  total: number;
-  data: any[];
-}
-
-export interface TwitchChannelData {
-  broadcaster: TwitchBroadcaster;
-  stream: TwitchStream | null;
-  channel: TwitchChannel | null;
-  followers: TwitchFollowers;
-  isLive: boolean;
-  stats: {
-    followerCount: number;
-    viewerCount: number;
-    streamTitle: string;
-    game: string;
-    startedAt: string | null;
-    thumbnailUrl: string | null;
-    tags: string[];
-  };
-}
+import {
+  TwitchRequestOptions,
+  TwitchUserData,
+  TwitchStream,
+  TwitchChannel,
+  TwitchFollowers,
+  TwitchChannelData,
+  TwitchResponse
+} from './twitch-types';
 
 /**
- * Base request function for Twitch API
+ * Base request function for Twitch API with retry logic and consistent error handling
+ * @param {string} endpoint - API endpoint (without /helix prefix)
+ * @param {TwitchRequestOptions} options - Request options
+ * @param {number} retryCount - Current retry attempt (internal use)
+ * @returns {Promise<T>} API response data
  */
-async function twitchRequest<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+export async function twitchRequest<T>(
+  endpoint: string,
+  options: TwitchRequestOptions = {},
+  retryCount = 0
+): Promise<T> {
   const {
     method = 'GET',
     params = {},
@@ -97,7 +41,7 @@ async function twitchRequest<T>(endpoint: string, options: RequestOptions = {}):
   }
   
   try {
-    const url = new URL(`https://api.twitch.tv/helix/${endpoint}`);
+    const url = new URL(`${TWITCH_CONFIG.API_BASE_URL}/${endpoint}`);
     
     // Add query parameters
     Object.entries(params).forEach(([key, value]) => {
@@ -121,8 +65,48 @@ async function twitchRequest<T>(endpoint: string, options: RequestOptions = {}):
     
     const response = await fetch(url.toString(), requestOptions);
     
+    // Handle rate limiting
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Ratelimit-Reset') || '5';
+      const retryMs = parseInt(retryAfter, 10) * 1000;
+      
+      console.warn(`Twitch API rate limited. Retrying after ${retryMs}ms`);
+      
+      // Wait for the specified time before retrying
+      await new Promise(resolve => setTimeout(resolve, retryMs));
+      
+      // Retry the request if we haven't exceeded max retries
+      if (retryCount < TWITCH_CONFIG.MAX_RETRY_ATTEMPTS) {
+        return twitchRequest(endpoint, options, retryCount + 1);
+      }
+    }
+    
+    // Handle authentication errors
+    if (response.status === 401) {
+      console.warn('Twitch API authentication error. Refreshing token and retrying...');
+      
+      // Don't use the same token for retry
+      const newOptions = {
+        ...options,
+        token: null,
+        userToken: null
+      };
+      
+      // Retry with a new token if we haven't exceeded max retries
+      if (retryCount < TWITCH_CONFIG.MAX_RETRY_ATTEMPTS) {
+        return twitchRequest(endpoint, newOptions, retryCount + 1);
+      }
+    }
+    
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      let errorData = {};
+      
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        // Ignore parsing errors
+      }
+      
       throw new Error(`Twitch API error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
     
@@ -135,14 +119,12 @@ async function twitchRequest<T>(endpoint: string, options: RequestOptions = {}):
 
 /**
  * Get broadcaster information by login name
+ * @param {string} login - Broadcaster's login name
+ * @returns {Promise<TwitchUserData|null>} Broadcaster data or null if not found
  */
-export async function getBroadcasterByLogin(login: string): Promise<TwitchBroadcaster | null> {
+export async function getBroadcasterByLogin(login: string): Promise<TwitchUserData | null> {
   try {
-    interface UsersResponse {
-      data: TwitchBroadcaster[];
-    }
-    
-    const response = await twitchRequest<UsersResponse>('users', {
+    const response = await twitchRequest<TwitchResponse<TwitchUserData>>('users', {
       params: { login }
     });
     
@@ -158,15 +140,35 @@ export async function getBroadcasterByLogin(login: string): Promise<TwitchBroadc
 }
 
 /**
+ * Get broadcaster information by ID
+ * @param {string} id - Broadcaster's ID
+ * @returns {Promise<TwitchUserData|null>} Broadcaster data or null if not found
+ */
+export async function getBroadcasterById(id: string): Promise<TwitchUserData | null> {
+  try {
+    const response = await twitchRequest<TwitchResponse<TwitchUserData>>('users', {
+      params: { id }
+    });
+    
+    if (response.data && response.data.length > 0) {
+      return response.data[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting broadcaster by ID:', error);
+    return null;
+  }
+}
+
+/**
  * Get stream information for a channel
+ * @param {string} channelName - Channel login name
+ * @returns {Promise<TwitchStream|null>} Stream data or null if offline
  */
 export async function getStreamInfo(channelName: string): Promise<TwitchStream | null> {
   try {
-    interface StreamsResponse {
-      data: TwitchStream[];
-    }
-    
-    const response = await twitchRequest<StreamsResponse>('streams', {
+    const response = await twitchRequest<TwitchResponse<TwitchStream>>('streams', {
       params: { user_login: channelName }
     });
     
@@ -183,16 +185,14 @@ export async function getStreamInfo(channelName: string): Promise<TwitchStream |
 
 /**
  * Get channel information
+ * @param {string} broadcasterId - Broadcaster's ID
+ * @returns {Promise<TwitchChannel|null>} Channel data or null if error
  */
 export async function getChannelInfo(broadcasterId: string): Promise<TwitchChannel | null> {
   try {
     if (!broadcasterId) return null;
     
-    interface ChannelsResponse {
-      data: TwitchChannel[];
-    }
-    
-    const response = await twitchRequest<ChannelsResponse>('channels', {
+    const response = await twitchRequest<TwitchResponse<TwitchChannel>>('channels', {
       params: { broadcaster_id: broadcasterId }
     });
     
@@ -209,18 +209,22 @@ export async function getChannelInfo(broadcasterId: string): Promise<TwitchChann
 
 /**
  * Get followers information
+ * @param {string} broadcasterId - Broadcaster's ID
+ * @param {Object} options - Optional parameters (first, after)
+ * @returns {Promise<TwitchFollowers>} Followers data
  */
-export async function getFollowers(broadcasterId: string): Promise<TwitchFollowers> {
+export async function getFollowers(
+  broadcasterId: string,
+  options: { first?: number; after?: string } = {}
+): Promise<TwitchFollowers> {
   try {
     if (!broadcasterId) return { total: 0, data: [] };
     
-    interface FollowersResponse {
-      total: number;
-      data: any[];
-    }
-    
-    const response = await twitchRequest<FollowersResponse>('channels/followers', {
-      params: { broadcaster_id: broadcasterId }
+    const response = await twitchRequest<TwitchFollowers>('channels/followers', {
+      params: { 
+        broadcaster_id: broadcasterId,
+        ...options
+      }
     });
     
     return response;
@@ -231,9 +235,106 @@ export async function getFollowers(broadcasterId: string): Promise<TwitchFollowe
 }
 
 /**
- * Get channel schedule
+ * Check if a user follows a channel
+ * @param {string} userId - User ID
+ * @param {string} broadcasterId - Broadcaster ID
+ * @returns {Promise<boolean>} True if following, false otherwise
  */
-export async function getChannelSchedule(broadcasterId: string, options: Record<string, any> = {}): Promise<any> {
+export async function checkFollowing(userId: string, broadcasterId: string): Promise<boolean> {
+  try {
+    const response = await twitchRequest<TwitchFollowers>('users/follows', {
+      params: {
+        from_id: userId,
+        to_id: broadcasterId
+      }
+    });
+    
+    return response.data && response.data.length > 0;
+  } catch (error) {
+    console.error('Error checking follow status:', error);
+    return false;
+  }
+}
+
+/**
+ * Follow a channel
+ * @param {string} userId - User ID
+ * @param {string} broadcasterId - Broadcaster ID
+ * @param {boolean} notifications - Enable notifications
+ * @param {string} userToken - User's OAuth token
+ * @returns {Promise<boolean>} True if successful
+ */
+export async function followChannel(
+  userId: string,
+  broadcasterId: string,
+  notifications = false,
+  userToken: string
+): Promise<boolean> {
+  try {
+    if (!userToken) {
+      throw new Error('User token required to follow a channel');
+    }
+    
+    await twitchRequest('users/follows', {
+      method: 'POST',
+      userToken,
+      data: {
+        from_id: userId,
+        to_id: broadcasterId,
+        notifications
+      }
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error following channel:', error);
+    return false;
+  }
+}
+
+/**
+ * Unfollow a channel
+ * @param {string} userId - User ID
+ * @param {string} broadcasterId - Broadcaster ID
+ * @param {string} userToken - User's OAuth token
+ * @returns {Promise<boolean>} True if successful
+ */
+export async function unfollowChannel(
+  userId: string,
+  broadcasterId: string,
+  userToken: string
+): Promise<boolean> {
+  try {
+    if (!userToken) {
+      throw new Error('User token required to unfollow a channel');
+    }
+    
+    await twitchRequest('users/follows', {
+      method: 'DELETE',
+      userToken,
+      params: {
+        from_id: userId,
+        to_id: broadcasterId
+      }
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error unfollowing channel:', error);
+    return false;
+  }
+}
+
+/**
+ * Get channel schedule
+ * @param {string} broadcasterId - Broadcaster's ID
+ * @param {Object} options - Optional parameters
+ * @returns {Promise<any>} Schedule data
+ */
+export async function getChannelSchedule(
+  broadcasterId: string,
+  options: Record<string, any> = {}
+): Promise<any> {
   try {
     if (!broadcasterId) return { data: { segments: [] } };
     
@@ -250,6 +351,8 @@ export async function getChannelSchedule(broadcasterId: string, options: Record<
 
 /**
  * Get combined channel data (stream, channel info, followers)
+ * @param {string} channelName - Channel login name
+ * @returns {Promise<TwitchChannelData>} Combined channel data
  */
 export async function getChannelData(channelName: string): Promise<TwitchChannelData> {
   try {
