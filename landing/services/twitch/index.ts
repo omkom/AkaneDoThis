@@ -4,5 +4,5 @@
 export * from './twitch-api';
 export * from './twitch-auth';
 export * from './twitch-client';
-export * from './twitch-types';
+export type { TwitchVideo as TwitchVideoType } from './twitch-types';
 export * from './getVideos';

@@ -7,7 +7,7 @@ import Videos from './components/Videos';
 import Community from './components/Community';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
-import TwitchIntegration from './components/Twitch/TwitchIntegration';
+//import TwitchIntegration from './components/Twitch/TwitchIntegration';
 import { trackPageView, trackFormSubmit } from './utils/analytics';
 import TwitchApiLogger from './components/Twitch/TwitchApiLogger';
 import { setupEnvironment, getEnv } from './utils/env-config';
@@ -86,10 +86,10 @@ export default function App() {
       <Header />
       <Hero />
       <Story />
-      <Schedule />
       <Videos />
+      <Schedule />
       
-      {/* Add Twitch Integration Section */}
+      {/* Add Twitch Integration Section 
       <section id="twitch" className="py-20 bg-black/70">
         <div className="container mx-auto px-4">
           <h2 className="neon-text cyan text-center text-4xl mb-12 font-cyber">Stream with Me</h2>
@@ -97,7 +97,7 @@ export default function App() {
             <TwitchIntegration />
           </div>
         </div>
-      </section>
+      </section>*/}
       
       <Community />
       <Contact />

@@ -32,7 +32,8 @@ export async function getVideos(
     // Get authentication token
     let token = userToken;
     if (!token) {
-      token = await getBestAvailableToken();
+      const bestToken = await getBestAvailableToken();
+      token = bestToken || undefined;
     }
     
     if (!token) {
