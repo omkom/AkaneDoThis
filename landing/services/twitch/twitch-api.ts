@@ -468,10 +468,10 @@ export async function checkSubscription(
 }
 
 /**
- * Get combined channel data (stream, channel info, followers, subscriptions if token provided)
- * @param channelName - Channel login name
- * @param userToken - Optional user token for subscription data
- * @returns Combined channel data
+ * Get combined channel data (stream, channel info, followers, VIPs)
+ * @param {string} channelName - Channel login name
+ * @param {string} userToken - Optional user token for VIP data
+ * @returns {Promise<TwitchChannelData>} Combined channel data
  */
 export async function getChannelData(
   channelName: string,
@@ -497,14 +497,13 @@ export async function getChannelData(
     // Determine if the channel is live
     const isLive = !!streamInfo;
     
-    // Build base data object
-    const result: TwitchChannelData = {
+    // Initialize channel data
+    let channelData: TwitchChannelData = {
       broadcaster,
       stream: streamInfo,
       channel: channelInfo,
       followers: followersInfo,
       isLive,
-      subscriberCount: null,
       stats: {
         followerCount: followersInfo.total || 0,
         viewerCount: isLive ? streamInfo?.viewer_count || 0 : 0,
@@ -516,19 +515,113 @@ export async function getChannelData(
       }
     };
     
-    // If user token provided, get subscription data
+    // If user token provided, try to fetch VIPs data
     if (userToken) {
       try {
-        const subCount = await getSubscriptionCount(broadcasterId, userToken);
-        result.subscriberCount = subCount;
-      } catch (subError) {
-        console.info('Unable to fetch subscription data - requires proper scope');
+        const vipsData = await getChannelVIPs(broadcasterId, {}, userToken);
+        
+        if (vipsData && vipsData.data) {
+          channelData.vips = vipsData.data;
+          channelData.stats.vipCount = vipsData.data.length;
+        }
+      } catch (vipError) {
+        console.warn('Error fetching VIPs data:', vipError);
+        // Continue without VIPs data
       }
     }
     
-    return result;
+    return channelData;
   } catch (error) {
     console.error('Error getting combined channel data:', error);
     throw error;
+  }
+}
+
+// Add these functions to the existing services/twitch/twitch-api.ts file
+
+/**
+ * Get VIPs for a channel
+ * @param {string} broadcasterId - Broadcaster's ID
+ * @param {Object} options - Optional parameters
+ * @param {string} userToken - User's OAuth token with channel:read:vips scope
+ * @returns {Promise<TwitchResponse<TwitchVIPData>>} VIPs data
+ */
+export async function getChannelVIPs(
+  broadcasterId: string,
+  options: { user_id?: string[]; first?: number; after?: string } = {},
+  userToken: string
+): Promise<TwitchResponse<TwitchVIPData>> {
+  try {
+    return await twitchRequest<TwitchResponse<TwitchVIPData>>('channels/vips', {
+      userToken,
+      requiresUserToken: true,
+      params: {
+        broadcaster_id: broadcasterId,
+        ...options
+      }
+    });
+  } catch (error) {
+    console.error('Error getting channel VIPs:', error);
+    return { data: [] };
+  }
+}
+
+/**
+ * Add a channel VIP
+ * @param {string} broadcasterId - Broadcaster's ID
+ * @param {string} userId - User ID to make VIP
+ * @param {string} userToken - User's OAuth token with channel:manage:vips scope
+ * @returns {Promise<boolean>} Success status
+ */
+export async function addChannelVIP(
+  broadcasterId: string,
+  userId: string,
+  userToken: string
+): Promise<boolean> {
+  try {
+    await twitchRequest('channels/vips', {
+      method: 'POST',
+      userToken,
+      requiresUserToken: true,
+      params: {
+        broadcaster_id: broadcasterId,
+        user_id: userId
+      }
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error adding VIP:', error);
+    return false;
+  }
+}
+
+/**
+ * Remove a channel VIP
+ * @param {string} broadcasterId - Broadcaster's ID
+ * @param {string} userId - User ID to remove as VIP
+ * @param {string} userToken - User's OAuth token with channel:manage:vips scope
+ * @returns {Promise<boolean>} Success status
+ */
+export async function removeChannelVIP(
+  broadcasterId: string,
+  userId: string,
+  userToken: string
+): Promise<boolean> {
+  try {
+    await twitchRequest('channels/vips', {
+      method: 'DELETE',
+      userToken,
+      requiresUserToken: true,
+      params: {
+        broadcaster_id: broadcasterId,
+        user_id: userId
+      }
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error removing VIP:', error);
+    return false;
   }
 }

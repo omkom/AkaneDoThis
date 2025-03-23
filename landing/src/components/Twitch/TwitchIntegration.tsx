@@ -20,6 +20,8 @@ import {
   formatThumbnailUrl,
   getTwitchChannelUrl
 } from '../../../services/twitch/twitch-client';
+import TwitchVIPsList from './TwitchVIPsList';
+import { FaCrown } from 'react-icons/fa';
 
 const TwitchIntegration: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -554,6 +556,51 @@ const TwitchIntegration: React.FC = () => {
                     ))}
                 </div>
               )}
+
+                {authData && (
+                <div className="mt-8">
+                    <div className="neo-card neo-card-purple p-6">
+                    <h4 className="text-lg font-cyber flex items-center mb-4">
+                        <FaCrown className="text-neon-pink mr-2" /> Channel VIPs
+                    </h4>
+                    
+                    <div className="mb-4">
+                        <p className="text-sm text-gray-400 mb-2">
+                        VIPs are special members recognized by the broadcaster for their contributions to the channel.
+                        </p>
+                        
+                        {/* Default to AkaneDoThis channel */}
+                        <TwitchVIPsList 
+                        broadcasterId="258e0f7f-cdd0-4ab8-89f2-82d97993f474" 
+                        broadcasterName="AkaneDoThis" 
+                        />
+                    </div>
+                    
+                    {/* Optional: Allow switching to view VIPs of currently live followed channels */}
+                    {events.filter(e => e.type === 'live').length > 0 && (
+                        <div className="mt-6 pt-4 border-t border-white/10">
+                        <h5 className="text-md font-cyber mb-2">
+                            Live Channel VIPs
+                        </h5>
+                        
+                        <div className="space-y-4">
+                            {events
+                            .filter(event => event.type === 'live')
+                            .slice(0, 1) // Just show the first one to keep it simple
+                            .map(event => (
+                                <div key={`vips-${event.id}`}>
+                                <TwitchVIPsList 
+                                    broadcasterId={event.broadcaster_id} 
+                                    broadcasterName={event.broadcaster_name} 
+                                />
+                                </div>
+                            ))}
+                        </div>
+                        </div>
+                    )}
+                    </div>
+                </div>
+                )}
             </div>
           ) : (
             <div className="text-center py-8">

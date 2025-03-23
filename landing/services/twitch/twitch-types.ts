@@ -184,3 +184,34 @@ export interface TwitchAuthData {
       cursor?: string;
     };
   }
+
+// Add these interfaces to the existing services/twitch/twitch-types.ts file
+
+/**
+ * VIP data structure
+ */
+export interface TwitchVIPData {
+    user_id: string;
+    user_name: string;
+    user_login: string;
+  }
+  
+  // Update TwitchChannelData to include VIPs
+  export interface TwitchChannelData {
+    broadcaster: TwitchUserData;
+    stream: TwitchStream | null;
+    channel: TwitchChannel | null;
+    followers: TwitchFollowers;
+    vips?: TwitchVIPData[];
+    isLive: boolean;
+    stats: {
+      followerCount: number;
+      viewerCount: number;
+      streamTitle: string;
+      game: string;
+      startedAt: string | null;
+      thumbnailUrl: string | null;
+      tags: string[];
+      vipCount?: number;
+    };
+  }

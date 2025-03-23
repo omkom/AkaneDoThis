@@ -22,7 +22,9 @@
       'user:read:follows', 
       'user:edit:follows', 
       'user:read:subscriptions',
-      'channel:read:subscriptions'  // Added for subscription count
+      'channel:read:subscriptions',
+      'channel:read:vips',      // Add this line for VIP reading
+      'channel:manage:vips'     // Add this line for VIP management
     ]
   };
 

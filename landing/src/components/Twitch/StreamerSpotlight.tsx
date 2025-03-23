@@ -29,15 +29,40 @@ import {
 // Default channel name if none is provided
 const DEFAULT_CHANNEL_NAME = 'akanedothis';
 
-// Throttle function to prevent excessive API calls
-function throttle(func, delay) {
+// Cache management - store data with timestamps
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+}
+
+// Global cache for channel data
+const channelDataCache = new Map<string, CacheItem<Partial<TwitchChannelData>>>();
+const followStatusCache = new Map<string, CacheItem<boolean>>();
+
+// Cache expiration times (in milliseconds)
+const CACHE_TIMES = {
+  CHANNEL_DATA: 60000, // 1 minute
+  FOLLOW_STATUS: 300000, // 5 minutes
+  AUTH_CHECK: 300000, // 5 minutes
+  LIVE_REFRESH: 30000, // 30 seconds for live data (viewers, etc)
+  MIN_REFRESH: 10000, // Minimum time between any API refreshes
+};
+
+/**
+ * Throttle function - prevents a function from being called more than once in a specified time period
+ */
+function throttle<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => ReturnType<T> | undefined {
   let lastCall = 0;
-  return function(...args) {
+  let lastResult: ReturnType<T>;
+  
+  return function(...args: Parameters<T>): ReturnType<T> | undefined {
     const now = Date.now();
     if (now - lastCall >= delay) {
       lastCall = now;
-      return func(...args);
+      lastResult = func(...args);
+      return lastResult;
     }
+    return lastResult;
   };
 }
 
@@ -77,64 +102,137 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
   const [subscriberCount, setSubscriberCount] = useState<number>(0);
   const [showAuthPopup, setShowAuthPopup] = useState<boolean>(false);
   
-  // Refs to prevent rerendering and keep track of previous state
+  // Refs to prevent rerendering and track state without triggering rerenders
   const authDataRef = useRef<TwitchAuthData | null>(null);
   const channelDataRef = useRef<Partial<TwitchChannelData>>(channelData);
   const isInitialLoadRef = useRef<boolean>(true);
-  const lastAuthCheckRef = useRef<number>(0);
-  const lastFollowCheckRef = useRef<number>(0);
-  const lastFetchRef = useRef<number>(0);
+  const apiInProgressRef = useRef<Record<string, boolean>>({
+    checkAuth: false,
+    checkFollowing: false,
+    fetchData: false
+  });
   
-  // Throttled API functions
-  const throttledCheckFollowing = useCallback(
-    throttle(async (token: string, userId: string, broadcasterId: string) => {
-      if (!broadcasterId || !userId) return;
-      
-      try {
-        // Record time of check
-        lastFollowCheckRef.current = Date.now();
-        
-        const isFollowing = await checkFollowing(userId, broadcasterId);
-        setIsFollowing(isFollowing);
-      } catch (err) {
-        console.error('Error checking follow status:', err);
+  // Function to get cached channel data (or null if expired)
+  const getCachedChannelData = useCallback((channelKey: string, forceRefresh = false) => {
+    const now = Date.now();
+    const cachedItem = channelDataCache.get(channelKey);
+    
+    if (!forceRefresh && cachedItem && now - cachedItem.timestamp < CACHE_TIMES.CHANNEL_DATA) {
+      return cachedItem.data;
+    }
+    
+    // If we have live data, use a shorter expiration for viewer counts
+    if (!forceRefresh && cachedItem && cachedItem.data.isLive) {
+      if (now - cachedItem.timestamp < CACHE_TIMES.LIVE_REFRESH) {
+        return cachedItem.data;
       }
-    }, 10000), // Only check follow status once every 10 seconds max
-    []
+    }
+    
+    return null;
+  }, []);
+  
+  // Function to cache channel data
+  const cacheChannelData = useCallback((channelKey: string, data: Partial<TwitchChannelData>) => {
+    channelDataCache.set(channelKey, {
+      data,
+      timestamp: Date.now()
+    });
+  }, []);
+  
+  // Function to get cached follow status (or null if expired)
+  const getCachedFollowStatus = useCallback((cacheKey: string) => {
+    const now = Date.now();
+    const cachedItem = followStatusCache.get(cacheKey);
+    
+    if (cachedItem && now - cachedItem.timestamp < CACHE_TIMES.FOLLOW_STATUS) {
+      return cachedItem.data;
+    }
+    
+    return null;
+  }, []);
+  
+  // Function to cache follow status
+  const cacheFollowStatus = useCallback((cacheKey: string, status: boolean) => {
+    followStatusCache.set(cacheKey, {
+      data: status,
+      timestamp: Date.now()
+    });
+  }, []);
+  
+  // Throttled and cached API functions
+  const checkFollowingWithCache = useCallback(async (token: string, userId: string, broadcasterId: string) => {
+    if (!broadcasterId || !userId) return;
+    
+    // Prevent concurrent calls
+    if (apiInProgressRef.current.checkFollowing) return;
+    
+    // Check cache first
+    const cacheKey = `${userId}-${broadcasterId}`;
+    const cachedStatus = getCachedFollowStatus(cacheKey);
+    
+    if (cachedStatus !== null) {
+      setIsFollowing(cachedStatus);
+      return;
+    }
+    
+    try {
+      // Mark API call in progress
+      apiInProgressRef.current.checkFollowing = true;
+      
+      const isFollowing = await checkFollowing(userId, broadcasterId);
+      
+      // Cache the result
+      cacheFollowStatus(cacheKey, isFollowing);
+      setIsFollowing(isFollowing);
+    } catch (err) {
+      console.error('Error checking follow status:', err);
+    } finally {
+      // Mark API call complete
+      apiInProgressRef.current.checkFollowing = false;
+    }
+  }, [cacheFollowStatus, getCachedFollowStatus]);
+  
+  // Throttled check following - only executes every 10 seconds max
+  const throttledCheckFollowing = useCallback(
+    throttle(checkFollowingWithCache, CACHE_TIMES.MIN_REFRESH),
+    [checkFollowingWithCache]
   );
   
   // Check for existing authentication on component mount - only once
   useEffect(() => {
     const checkAuth = async () => {
-      // Don't check auth if we already did recently
-      const now = Date.now();
-      if (now - lastAuthCheckRef.current < 30000) return; // 30 second cooldown
+      // Prevent concurrent auth checks
+      if (apiInProgressRef.current.checkAuth) return;
       
-      lastAuthCheckRef.current = now;
-      const storedAuth = getStoredAuth();
-      
-      if (storedAuth) {
-        // Only validate if we don't already have auth data
-        if (!authDataRef.current) {
-          try {
-            const isValid = await validateToken(storedAuth.token);
-            if (isValid) {
-              setAuthData(storedAuth);
-              authDataRef.current = storedAuth;
-              
-              // Check follow status only if we have broadcaster data
-              if (channelDataRef.current?.broadcaster) {
-                throttledCheckFollowing(
-                  storedAuth.token, 
-                  storedAuth.userData.id, 
-                  channelDataRef.current.broadcaster.id
-                );
+      try {
+        apiInProgressRef.current.checkAuth = true;
+        const storedAuth = getStoredAuth();
+        
+        if (storedAuth) {
+          // Only validate if we don't already have auth data
+          if (!authDataRef.current) {
+            try {
+              const isValid = await validateToken(storedAuth.token);
+              if (isValid) {
+                setAuthData(storedAuth);
+                authDataRef.current = storedAuth;
+                
+                // Check follow status only if we have broadcaster data
+                if (channelDataRef.current?.broadcaster) {
+                  throttledCheckFollowing(
+                    storedAuth.token, 
+                    storedAuth.userData.id, 
+                    channelDataRef.current.broadcaster.id
+                  );
+                }
               }
+            } catch (err) {
+              console.error("Error validating token:", err);
             }
-          } catch (err) {
-            console.error("Error validating token:", err);
           }
         }
+      } finally {
+        apiInProgressRef.current.checkAuth = false;
       }
     };
     
@@ -148,15 +246,11 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
     channelDataRef.current = channelData;
     
     if (authData?.token && channelData?.broadcaster?.id) {
-      // Only check if we haven't done so recently
-      const now = Date.now();
-      if (now - lastFollowCheckRef.current > 10000) { // 10 second cooldown
-        throttledCheckFollowing(
-          authData.token,
-          authData.userData.id,
-          channelData.broadcaster.id
-        );
-      }
+      throttledCheckFollowing(
+        authData.token,
+        authData.userData.id,
+        channelData.broadcaster.id
+      );
     }
   }, [authData, channelData?.broadcaster?.id, throttledCheckFollowing]);
   
@@ -347,7 +441,14 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       }
       
       if (success) {
-        setIsFollowing(!isFollowing);
+        const newStatus = !isFollowing;
+        setIsFollowing(newStatus);
+        
+        // Update cache
+        const cacheKey = `${userId}-${broadcasterId}`;
+        cacheFollowStatus(cacheKey, newStatus);
+        
+        // Track event
         trackClick('twitch', isFollowing ? 'unfollow' : 'follow');
       } else {
         throw new Error(`Failed to ${isFollowing ? 'unfollow' : 'follow'} channel`);
@@ -359,14 +460,51 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
     }
   };
   
-  // Fetch channel data - optimized to avoid excessive dependencies and rerenders
-  const fetchChannelData = useCallback(async () => {
-    // Implement throttling to prevent excessive API calls
-    const now = Date.now();
-    if (!isInitialLoadRef.current && now - lastFetchRef.current < 30000) {
-      return; // Don't fetch more than once every 30 seconds for refreshes
+  // Fetch channel data - optimized to use caching and avoid excessive rerendering
+  const fetchChannelData = useCallback(async (forceRefresh = false) => {
+    // Prevent concurrent fetches
+    if (apiInProgressRef.current.fetchData) return;
+    
+    // Get from cache first if not forcing refresh
+    if (!forceRefresh) {
+      const cachedData = getCachedChannelData(channelName);
+      if (cachedData) {
+        // Only update state if this is initial load or data has changed
+        if (isInitialLoadRef.current || JSON.stringify(cachedData) !== JSON.stringify(channelDataRef.current)) {
+          setChannelData(cachedData);
+          channelDataRef.current = cachedData;
+
+          // If initial load is complete and data is from cache, we can stop loading
+          if (isInitialLoadRef.current) {
+            isInitialLoadRef.current = false;
+            setIsLoading(false);
+            
+            // Estimate subscriber count based on broadcaster type
+            if (cachedData.broadcaster) {
+              let subCount = 0;
+              
+              if (cachedData.broadcaster.broadcaster_type === 'partner') {
+                subCount = Math.floor(Math.random() * 2000) + 500;
+              } else if (cachedData.broadcaster.broadcaster_type === 'affiliate') {
+                subCount = Math.floor(Math.random() * 300) + 50;
+              }
+              
+              setSubscriberCount(subCount);
+            }
+            
+            // Check follow status if authenticated
+            if (authDataRef.current?.token && cachedData.broadcaster?.id) {
+              throttledCheckFollowing(
+                authDataRef.current.token,
+                authDataRef.current.userData.id,
+                cachedData.broadcaster.id
+              );
+            }
+          }
+        }
+        return;
+      }
     }
-    lastFetchRef.current = now;
     
     // Only show loading on initial load
     if (isInitialLoadRef.current) {
@@ -375,12 +513,19 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
     }
     
     try {
-      // Use the service to get all channel data
+      // Mark fetch in progress
+      apiInProgressRef.current.fetchData = true;
+      
+      // Fetch fresh data from API
       const data = await getChannelData(channelName);
+      
+      // Cache the new data
+      cacheChannelData(channelName, data);
       
       if (isInitialLoadRef.current) {
         // Full update on initial load
         setChannelData(data);
+        channelDataRef.current = data;
         
         // Estimate subscriber count based on broadcaster type
         if (data.broadcaster) {
@@ -395,66 +540,41 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           setSubscriberCount(subCount);
         }
         
-        // After initial load, set ref to false
         isInitialLoadRef.current = false;
       } else {
-        // For refreshes, only update certain fields to minimize re-renders
-        // Check if live status changed
-        if (data.isLive !== channelDataRef.current.isLive) {
-          setChannelData(prevData => ({
-            ...prevData,
-            isLive: data.isLive,
-            stream: data.stream,
-            stats: {
-              ...prevData.stats,
-              viewerCount: data.stats?.viewerCount || 0,
-              streamTitle: data.stats?.streamTitle || prevData.stats?.streamTitle || '',
-              startedAt: data.stats?.startedAt || null,
-              game: data.stats?.game || prevData.stats?.game || ''
-            }
-          }));
-        } else if (data.isLive) {
-          // Only update viewer count and other dynamic fields
-          setChannelData(prevData => ({
-            ...prevData,
-            stats: {
-              ...prevData.stats,
-              viewerCount: data.stats?.viewerCount || 0
-            }
-          }));
-        }
+        // For refreshes, check what's changed to avoid unnecessary rerenders
         
-        // Selectively update broadcaster and follower data if it changed
-        if (data.broadcaster?.id !== channelDataRef.current.broadcaster?.id ||
-            data.followers?.total !== channelDataRef.current.followers?.total) {
-          setChannelData(prevData => ({
-            ...prevData,
-            broadcaster: data.broadcaster || prevData.broadcaster,
-            followers: data.followers || prevData.followers,
-            stats: {
-              ...prevData.stats,
-              followerCount: data.stats?.followerCount || prevData.stats?.followerCount || 0
-            }
-          }));
+        // Function to check if key stats have changed
+        const hasKeyStatsChanged = () => {
+          const oldStats = channelDataRef.current.stats || {};
+          const newStats = data.stats || {};
+          
+          return (
+            oldStats.viewerCount !== newStats.viewerCount ||
+            oldStats.followerCount !== newStats.followerCount ||
+            oldStats.streamTitle !== newStats.streamTitle ||
+            oldStats.game !== newStats.game ||
+            channelDataRef.current.isLive !== data.isLive
+          );
+        };
+        
+        // Only update if important data has changed
+        if (hasKeyStatsChanged()) {
+          setChannelData(data);
+          channelDataRef.current = data;
         }
       }
       
       // Clear any errors on successful fetch
       if (error) setError(null);
       
-      // Update the ref after successful fetch
-      channelDataRef.current = data;
-      
-      // Check follow status only if authenticated and not checked recently
+      // Check follow status only if authenticated
       if (authDataRef.current?.token && data.broadcaster?.id) {
-        const now = Date.now();
-        if (now - lastFollowCheckRef.current > 10000) { // 10 second cooldown
-          throttledCheckFollowing(
-            authDataRef.current.token,
-            authDataRef.current.userData.id,
-            data.broadcaster.id
-          );
-        }
+        throttledCheckFollowing(
+          authDataRef.current.token,
+          authDataRef.current.userData.id,
+          data.broadcaster.id
+        );
       }
     } catch (err) {
       console.error('Error fetching channel data:', err);
@@ -464,7 +584,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
         setError('Failed to load channel data');
         
         // Set fallback data so UI doesn't break
-        setChannelData({
+        const fallbackData = {
           broadcaster: null,
           stream: null,
           channel: null,
@@ -479,43 +599,80 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
             thumbnailUrl: null,
             tags: []
           }
-        });
+        };
+        
+        setChannelData(fallbackData);
+        channelDataRef.current = fallbackData;
         setSubscriberCount(342); // Fallback subscriber count
       }
     } finally {
       // Only update loading state on initial load
       if (isInitialLoadRef.current) {
         setIsLoading(false);
+        isInitialLoadRef.current = false;
       }
+      
+      // Mark fetch complete
+      apiInProgressRef.current.fetchData = false;
     }
-  }, [channelName, error, throttledCheckFollowing]); // Minimal dependencies
+  }, [
+    channelName, 
+    error, 
+    getCachedChannelData, 
+    cacheChannelData, 
+    throttledCheckFollowing
+  ]);
 
   // Fetch data on component mount and set refresh interval
   useEffect(() => {
-    fetchChannelData();
+    // Create throttled refresh function
+    const throttledFetchData = throttle(() => {
+      fetchChannelData(false);
+    }, CACHE_TIMES.MIN_REFRESH);
     
-    // Refresh data every 60 seconds when tab is visible
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        fetchChannelData();
+    // Initial fetch
+    fetchChannelData(true);
+    
+    // Setup refresh interval - different intervals based on live status
+    let intervalId: number;
+    
+    const setupInterval = () => {
+      // Clear existing interval if any
+      if (intervalId) {
+        clearInterval(intervalId);
       }
-    }, 60000);
+      
+      // Determine refresh rate based on live status
+      const refreshRate = channelDataRef.current.isLive ? 
+        CACHE_TIMES.LIVE_REFRESH : // More frequent updates if live
+        CACHE_TIMES.CHANNEL_DATA; // Less frequent if not live
+      
+      // Set new interval
+      intervalId = window.setInterval(() => {
+        if (!document.hidden) {
+          throttledFetchData();
+        }
+      }, refreshRate);
+    };
     
-    // Add visibility change listener to refresh when tab becomes visible
+    // Setup initial interval
+    setupInterval();
+    
+    // Update interval when live status changes
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        // When tab becomes visible, only fetch if it's been more than 30 seconds
-        const now = Date.now();
-        if (now - lastFetchRef.current > 30000) {
-          fetchChannelData();
-        }
+        throttledFetchData();
       }
     };
+    
+    // Listen for visibility changes
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Clean up
     return () => {
-      clearInterval(interval);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       
       // Clean up auth overlay if it exists
@@ -620,9 +777,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
             {stats?.streamTitle || 'Check out our Twitch channel!'}
           </h5>
           {stats?.game && (
-            <div className="text-gray-300 text-xs mt-1">
-              Playing: {stats.game}
-            </div>
+            <div className="text-gray-300 text-xs mt-1">Playing: {stats.game}</div>
           )}
           {isLive && stats?.startedAt && (
             <div className="flex items-center text-gray-400 text-xs mt-1">
