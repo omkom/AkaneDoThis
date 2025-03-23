@@ -462,7 +462,7 @@ export async function getChannelVIPs(
 
 /**
  * Get channel schedule information
- * 
+ *
  * @param broadcasterId Twitch broadcaster ID
  * @param userToken Optional user token for authenticated requests
  * @param start_time Optional ISO 8601 timestamp for schedule start time
@@ -481,33 +481,33 @@ export async function getChannelSchedule(
     if (!broadcasterId) {
       throw new Error('Broadcaster ID is required to fetch schedule');
     }
-    
+
     // Get authentication token
     let accessToken = userToken;
     if (!accessToken) {
       accessToken = await getBestAvailableToken();
     }
-    
+
     if (!accessToken) {
       throw new Error('No authentication token available');
     }
-    
+
     // Build URL with query parameters
     const url = new URL(`${TWITCH_CONFIG.API_BASE_URL}/schedule`);
     url.searchParams.append('broadcaster_id', broadcasterId);
-    
+
     if (start_time) {
       url.searchParams.append('start_time', start_time);
     }
-    
+
     if (utc_offset) {
       url.searchParams.append('utc_offset', utc_offset);
     }
-    
+
     if (first) {
       url.searchParams.append('first', first.toString());
     }
-    
+
     // Make API request
     const response = await fetch(url.toString(), {
       method: 'GET',
@@ -516,7 +516,11 @@ export async function getChannelSchedule(
         'Authorization': `Bearer ${accessToken}`
       }
     });
-    
+
+    // Log the response for debugging
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers.get('Content-Type'));
+
     // Handle errors
     if (!response.ok) {
       // Special case: 404 means no schedule set up, return empty schedule
@@ -528,13 +532,22 @@ export async function getChannelSchedule(
           }
         };
       }
-      
+
+      // Log the response text for non-JSON responses
+      const text = await response.text();
+      console.error('Error response text:', text);
+
       throw new Error(`Failed to fetch channel schedule: ${response.status} ${response.statusText}`);
     }
-    
-    // Parse and return data
-    const data = await response.json();
-    return data as TwitchSchedule;
+
+    // Check Content-Type
+    const contentType = response.headers.get('Content-Type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      return data as TwitchSchedule;
+    } else {
+      throw new Error('Response is not in JSON format');
+    }
   } catch (error) {
     console.error('Error fetching channel schedule:', error);
     // Return empty schedule as fallback
@@ -546,6 +559,7 @@ export async function getChannelSchedule(
     };
   }
 }
+
 
 /**
  * Get combined channel data (stream, channel info, followers, subscription count)
