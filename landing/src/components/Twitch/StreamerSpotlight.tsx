@@ -1,14 +1,13 @@
-// landing/src/components/Twitch/StreamerSpotlight.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FaTwitch, FaPlay, FaUsers, FaStar, FaHeart, FaRegHeart } from 'react-icons/fa';
 import { trackClick } from '../../utils/analytics';
 
 // Import Twitch services
-import { 
-  getChannelData, 
+import {
+  getChannelData,
   checkFollowing,
   followChannel,
-  unfollowChannel 
+  unfollowChannel
 } from '../../../services/twitch';
 
 import {
@@ -41,8 +40,8 @@ interface StreamerSpotlightProps {
  * StreamerSpotlight Component
  * Displays Twitch streamer information with subscription and follow functionality
  */
-const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({ 
-  channelName = DEFAULT_CHANNEL_NAME 
+const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
+  channelName = DEFAULT_CHANNEL_NAME
 }) => {
   // State
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -67,13 +66,13 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       tags: []
     }
   });
-  
+
   // Refs to track state without triggering rerenders
   const authDataRef = useRef<TwitchAuthData | null>(null);
   const channelDataRef = useRef<Partial<TwitchChannelData>>(channelData);
   const isInitialLoadRef = useRef<boolean>(true);
   const lastFetchTimeRef = useRef<number>(0);
-  
+
   // Check for existing authentication on component mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -93,10 +92,10 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
         }
       }
     };
-    
+
     checkAuth();
   }, []);
-  
+
   // Function to throttle API calls
   const throttledFetch = useCallback(async (fetchFn: () => Promise<void>) => {
     const now = Date.now();
@@ -105,11 +104,11 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       await fetchFn();
     }
   }, []);
-  
+
   // Function to check follow status
   const checkFollowStatus = useCallback(async (token: string, userId: string, broadcasterId: string) => {
     if (!broadcasterId || !userId) return;
-    
+
     try {
       const followStatus = await checkFollowing(userId, broadcasterId, token);
       setIsFollowing(followStatus);
@@ -117,7 +116,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       console.error('Error checking follow status:', err);
     }
   }, []);
-  
+
   // Function to fetch channel data
   const fetchChannelData = useCallback(async (forceRefresh = false) => {
     // Use throttled fetch except on initial load or forced refresh
@@ -126,20 +125,20 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
         await fetchChannelData(true);
       });
     }
-    
+
     setIsLoading(isInitialLoadRef.current); // Only show loading on initial load
     setError(null);
-    
+
     try {
       // Get user token if available
       const userToken = authDataRef.current?.token;
-      
+
       // Fetch channel data with user token if available
       const data = await getChannelData(channelName, userToken);
-      
+
       setChannelData(data);
       channelDataRef.current = data;
-      
+
       // Check follow status if authenticated
       if (authDataRef.current?.token && data.broadcaster?.id) {
         await checkFollowStatus(
@@ -148,16 +147,16 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           data.broadcaster.id
         );
       }
-      
+
       // Clear any errors on successful fetch
       setError(null);
     } catch (err) {
       console.error('Error fetching channel data:', err);
-      
+
       if (isInitialLoadRef.current) {
         // Only show error on initial load
         setError('Failed to load channel data');
-        
+
         // Set fallback data
         const fallbackData = {
           broadcaster: null,
@@ -176,7 +175,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
             tags: []
           }
         };
-        
+
         setChannelData(fallbackData);
         channelDataRef.current = fallbackData;
       }
@@ -187,15 +186,15 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       }
     }
   }, [channelName, checkFollowStatus, throttledFetch]);
-  
+
   // Fetch data on mount and when auth changes
   useEffect(() => {
     // Update auth ref
     authDataRef.current = authData;
-    
+
     // Fetch data immediately
     fetchChannelData(true);
-    
+
     // Set up refresh interval
     const refreshInterval = setInterval(() => {
       if (!document.hidden) {
@@ -203,23 +202,23 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
         fetchChannelData(false);
       }
     }, channelData.isLive ? CACHE_TIMES.LIVE_REFRESH : CACHE_TIMES.CHANNEL_DATA);
-    
+
     // Refresh data when visibility changes
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         fetchChannelData(false);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     // Clean up
     return () => {
       clearInterval(refreshInterval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [authData, fetchChannelData, channelData.isLive]);
-  
+
   // Show login dialog
   const showLoginPopup = () => {
     if (typeof window !== 'undefined' && window.loginWithTwitch) {
@@ -237,33 +236,33 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       });
     }
   };
-  
+
   // Handle follow/unfollow
   const handleFollowToggle = async () => {
     if (!authData) {
       showLoginPopup();
       return;
     }
-    
+
     if (!channelData.broadcaster) {
       setError('Cannot follow: broadcaster information not available');
       return;
     }
-    
+
     setFollowLoading(true);
-    
+
     try {
       const userId = authData.userData.id;
       const token = authData.token;
       const broadcasterId = channelData.broadcaster.id;
-      
+
       let success = false;
       if (isFollowing) {
         success = await unfollowChannel(userId, broadcasterId, token);
       } else {
         success = await followChannel(userId, broadcasterId, true, token);
       }
-      
+
       if (success) {
         setIsFollowing(!isFollowing);
         // Track event
@@ -277,19 +276,19 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       setFollowLoading(false);
     }
   };
-  
+
   // Handle watch button click
   const handleWatchClick = () => {
     window.open(getTwitchChannelUrl(channelName), '_blank');
     trackClick('twitch', 'watch');
   };
-  
+
   // Extract values from channel data
   const { isLive, stats, subscriberCount } = channelData;
-  
+
   // Create a fixed-height container for content
   const minHeight = "200px";
-  
+
   // Loading state
   if (isLoading) {
     return (
@@ -302,7 +301,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       </div>
     );
   }
-  
+
   return (
     <div className="streamer-spotlight-container w-full max-w-md mx-auto mt-6" style={{ minHeight }}>
       <div className={`neo-card ${isLive ? 'neo-card-pink' : 'neo-card-purple'} p-4 md:p-6 rounded-lg backdrop-blur-sm relative overflow-hidden`}>
@@ -379,11 +378,11 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
         {/* Action buttons */}
         <div className="flex gap-2 h-10">
           {/* Follow/Unfollow button */}
-          <button 
+          <button
             onClick={handleFollowToggle}
             className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-cyber ${
-              isFollowing 
-                ? 'bg-bright-purple/10 text-bright-purple border border-bright-purple' 
+              isFollowing
+                ? 'bg-bright-purple/10 text-bright-purple border border-bright-purple'
                 : 'bg-bright-purple text-white'
             } rounded hover:bg-bright-purple/30 transition`}
           >
@@ -401,15 +400,15 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           </button>
 
           {/* Watch button */}
-          <button 
+          <button
             onClick={handleWatchClick}
             className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-cyber ${
-              isLive 
-                ? 'bg-neon-pink text-black hover:bg-neon-pink/90 animate-[pulse_2s_infinite]' 
+              isLive
+                ? 'bg-neon-pink text-black hover:bg-neon-pink/90 animate-[pulse_2s_infinite]'
                 : 'bg-electric-blue/20 border border-electric-blue text-white hover:bg-electric-blue/30'
             } rounded transition`}
           >
-            <FaPlay /> 
+            <FaPlay />
             {isLive ? 'Watch Now' : 'View Channel'}
           </button>
         </div>
@@ -419,21 +418,6 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           {error && (
             <div className="p-2 bg-red-900/30 border border-red-500 text-red-200 rounded text-xs">
               {error}
-            </div>
-          )}
-        </div>
-
-        {/* Login prompt if not authenticated */}
-        <div className="min-h-10 mt-1">
-          {!authData && !error && (
-            <div className="mt-2 p-2 bg-bright-purple/10 border border-bright-purple/30 rounded text-xs flex items-center justify-between">
-              <span className="text-bright-purple">Sign in with Twitch for more features</span>
-              <button 
-                onClick={showLoginPopup}
-                className="text-white bg-bright-purple/30 px-2 py-1 rounded text-xs hover:bg-bright-purple/50"
-              >
-                Connect
-              </button>
             </div>
           )}
         </div>
