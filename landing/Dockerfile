@@ -1,27 +1,49 @@
-FROM node:18-alpine
+FROM node:18-alpine as build
 
 WORKDIR /app
 
-# Set environment variables
-ENV NODE_ENV=${NODE_ENV}
-ENV TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-ENV TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-ENV PORT=3000
-
+# Install dependencies for better caching
 COPY package*.json ./
+RUN npm ci
 
-RUN npm install
-
+# Copy source code
 COPY . .
 
-# Add build step to ensure we have a valid build in the container
+# Build the application
+ARG TWITCH_CLIENT_ID
+ARG TWITCH_CLIENT_SECRET
+ENV VITE_TWITCH_CLIENT_ID=$TWITCH_CLIENT_ID
+ENV VITE_TWITCH_CLIENT_SECRET=$TWITCH_CLIENT_SECRET
+ENV NODE_ENV=production
+
 RUN npm run build
 
+# Production stage
+FROM node:18-alpine as production
+
+WORKDIR /app
+
+# Install production dependencies only
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Install additional server dependencies
+RUN npm install compression helmet cors express dotenv
+
+# Copy built assets from build stage
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/server ./server
+COPY --from=build /app/public ./public
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose port
 EXPOSE 3000
 
-# Use different commands based on NODE_ENV
-CMD if [ "$NODE_ENV" = "production" ]; then \
-    npm start; \
-    else \
-    npm run dev; \
-    fi
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD wget -qO- http://localhost:3000/health || exit 1
+
+# Start server
+CMD ["node", "server/index.js"]

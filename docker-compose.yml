@@ -1,59 +1,93 @@
+version: '3.8'
+
 services:
-  n8n:
-    image: n8nio/n8n:latest
-    restart: unless-stopped
+  # Development mode service
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build
+    volumes:
+      - .:/app
+      - /app/node_modules  # Exclude node_modules from mounting
     ports:
-      - "5678:5678"
+      - "5173:5173"  # Vite dev server
+      - "3000:3000"  # Express API server
     environment:
-      - N8N_HOST=n8n
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - NODE_ENV=production
-      - N8N_RUNNERS_ENABLED
-      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
-      - WEBHOOK_URL=http://localhost:5678/
+      - NODE_ENV=development
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-    volumes:
-      - n8n_data:/home/node/.n8n
-    networks:
-      - app-network
+    command: sh -c "npm run dev -- --host 0.0.0.0 & node server/index.js & wait"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
+  # Build-only service for CI/CD pipelines
+  build:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build
+      args:
+        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+        - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    volumes:
+      - dist_data:/app/dist
+    environment:
+      - NODE_ENV=production
+      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - VITE_TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    command: npm run build
+
+  # Production service
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+        - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      - PORT=3000
+    volumes:
+      - dist_data:/app/dist:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # Nginx service for production
   nginx:
     image: nginx:alpine
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
       - dist_data:/usr/share/nginx/html:ro
     depends_on:
-      - landing
-    networks:
-      - app-network
-
-  landing:
-    build:
-      context: ./landing
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    command: node server/index.js
+      - prod
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-      - VITE_TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-    volumes:
-      - dist_data:/app/dist:ro
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
+      - NGINX_HOST=akane.production
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
 
 volumes:
-  n8n_data:
-    driver: local
   dist_data:
-    name: landing_dist_data
+    name: akane_landing_dist_data
