@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# Enhanced build script with improved error handling, environment variable checking, and logging
-
-set -e  # Exit immediately if a command exits with a non-zero status
+# Production build script with enhanced security and error handling
+set -e  # Exit immediately if a command exits with non-zero status
 
 # Configuration
 LOGFILE="build_log.txt"
@@ -22,27 +21,13 @@ check_error() {
   fi
 }
 
-# Check if running as root (avoid permission issues)
-if [ "$EUID" -eq 0 ]; then
-  log "WARNING: Running as root is not recommended. Consider using a non-root user."
-  read -p "Continue anyway? (y/n) " -n 1 -r
-  echo
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    log "Build aborted by user."
-    exit 1
-  fi
-fi
-
 # Clear previous log and start new one
 echo "# Build log started at $TIMESTAMP" > $LOGFILE
-log "Starting build process..."
+log "Starting production build process..."
 
 # Check for required environment variables
 if [ ! -f "$ENV_FILE" ]; then
-  log "WARNING: No .env file found. Creating a template..."
-  echo "# Twitch API credentials" > $ENV_FILE
-  echo "TWITCH_CLIENT_ID=" >> $ENV_FILE
-  echo "TWITCH_CLIENT_SECRET=" >> $ENV_FILE
+  log "WARNING: No .env file found."
   log "Please fill in the .env file with your Twitch API credentials."
   read -p "Continue without environment variables? (y/n) " -n 1 -r
   echo
@@ -52,7 +37,9 @@ if [ ! -f "$ENV_FILE" ]; then
   fi
 else
   # Source the environment file
-  source $ENV_FILE
+  set -a
+  source "$ENV_FILE"
+  set +a
 
   # Check for required variables
   if [ -z "$TWITCH_CLIENT_ID" ] || [ -z "$TWITCH_CLIENT_SECRET" ]; then
@@ -78,17 +65,8 @@ fi
 
 # Stop all running containers
 log "Stopping all running containers..."
-docker compose down -v
+docker compose down
 check_error "Failed to stop main containers"
-
-cd landing
-docker compose down -v
-check_error "Failed to stop landing containers"
-cd ..
-
-# Remove volumes to clean locked resources
-log "Cleaning up volumes..."
-docker volume rm akane_landing_dist_data || true
 
 # Clean previous build artifacts
 log "Cleaning previous build artifacts..."
@@ -97,89 +75,90 @@ check_error "Failed to clean dist directory"
 mkdir -p landing/dist
 check_error "Failed to create clean dist directory"
 
-# Clean Docker cache
-log "Cleaning Docker cache..."
-docker builder prune -f
-check_error "Failed to clean Docker builder cache"
+# Pull the latest images
+log "Pulling latest Docker images..."
+docker compose pull
+check_error "Failed to pull Docker images"
 
-# Remove any dangling images
-log "Removing dangling images..."
-docker image prune -f
-check_error "Failed to remove dangling images"
-
-# Rebuild landing Docker image from scratch
-log "Rebuilding landing image from scratch..."
+# Build the landing site
+log "Building landing site..."
 cd landing
 
 # Export environment variables to Docker Compose
 export TWITCH_CLIENT_ID
 export TWITCH_CLIENT_SECRET
+export NODE_ENV=production
 
-# Rebuild with additional diagnostics
-log "Rebuilding Docker containers with improved diagnostics..."
-docker compose build --no-cache build
-check_error "Failed to rebuild Docker image"
+# Rebuild with proper caching
+log "Rebuilding Docker containers..."
+docker compose build build
+check_error "Failed to build Docker image"
 
-# Run the build command to generate the dist directory
+# Run the build command
 log "Running build process..."
-docker compose run --rm build
+docker compose run --rm --remove-orphans build
 check_error "Build process failed"
-
-# Make sure the files have proper permissions
-docker compose run --rm build sh -c "chmod -R 755 /app/dist"
-check_error "Failed to set permissions on dist directory"
 
 # Verify build output
 log "Verifying build output..."
 if [ ! -f "dist/index.html" ]; then
-  log "WARNING: index.html not found directly in dist folder, checking if it's in a subfolder..."
-  # Check inside dist for index.html
-  FOUND_INDEX=$(find dist -name "index.html" | wc -l)
-  if [ "$FOUND_INDEX" -eq "0" ]; then
-    log "ERROR: Build failed - index.html not found in dist folder or subfolders"
-    exit 1
-  else
-    log "Found index.html in a subfolder, continuing..."
-  fi
+  log "ERROR: index.html not found in dist folder"
+  exit 1
 fi
 
-# Verify client secret is not in client assets
+# Ensure no sensitive information is leaked
 log "Checking for exposed secrets..."
-if grep -q "TWITCH_CLIENT_SECRET" dist/*.js 2>/dev/null; then
-  log "ERROR: Client secret found in built JavaScript! Fix this before deploying."
+if grep -r "TWITCH_CLIENT_SECRET" dist/ &>/dev/null; then
+  log "ERROR: Client secret was found in build files! Security risk detected."
   exit 1
 fi
 
 log "Build completed successfully"
 cd ..
 
-# Clear Nginx cache if exists
-if [ -d "/var/cache/nginx" ]; then
-  log "Clearing Nginx cache..."
-  sudo rm -rf /var/cache/nginx/* || log "Could not clear Nginx cache (non-fatal)"
-fi
+# Configure Nginx for production
+log "Configuring Nginx for production..."
+
+# Create required volumes if they don't exist
+log "Setting up Docker volumes..."
+docker volume create akane_dist_data || true
+docker volume create akane_n8n_data || true
 
 # Start production environment
 log "Starting production environment..."
 docker compose up -d
 check_error "Failed to start production environment"
 
-# Verify the application is running
-log "Waiting for application to be accessible..."
+# Wait for services to come up
+log "Waiting for services to start..."
 sleep 10
 
-# Attempt to access the health endpoint
-HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || echo "failed")
-
-if [ "$HEALTH_STATUS" = "200" ]; then
-  log "Success! Application is accessible and healthy."
-elif [ "$HEALTH_STATUS" = "failed" ]; then
-  log "WARNING: Could not connect to the application."
-  log "Check logs with: docker compose logs"
+# Check if the services are running
+log "Checking if services are running..."
+RUNNING_CONTAINERS=$(docker compose ps --status running --services | wc -l)
+if [ "$RUNNING_CONTAINERS" -lt 3 ]; then
+  log "WARNING: Not all services are running. Check the logs with: docker compose logs"
 else
-  log "WARNING: Application returned unexpected status code: $HEALTH_STATUS"
-  log "Check logs with: docker compose logs"
+  log "All services are running correctly"
+fi
+
+# Final checks
+log "Performing final checks..."
+HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/health || echo "failed")
+if [ "$HEALTH_CHECK" == "200" ]; then
+  log "Health check passed successfully"
+else
+  log "WARNING: Health check failed with status: $HEALTH_CHECK"
+  log "Check the logs with: docker compose logs"
 fi
 
 log "Build and deployment completed at $(date)"
-log "Twitch integration is configured with Client ID: ${TWITCH_CLIENT_ID:0:3}...${TWITCH_CLIENT_ID: -3}"
+echo ""
+echo "╔═══════════════════════════════════════════════════════════════╗"
+echo "║ Production environment is running!                            ║"
+echo "║                                                               ║"
+echo "║ - HTTPS: https://akane.production                             ║"
+echo "║ - Admin: http://akane.production/n8n/                         ║"
+echo "║                                                               ║"
+echo "║ Run 'docker compose logs' to view the logs                    ║"
+echo "╚═══════════════════════════════════════════════════════════════╝"

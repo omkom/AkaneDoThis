@@ -1,32 +1,7 @@
-# Main docker-compose file that orchestrates all services
 version: '3.8'
-services:
-  # n8n automation service
-  n8n:
-    image: n8nio/n8n:latest
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_HOST=n8n
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - NODE_ENV=production
-      - WEBHOOK_URL=http://localhost:5678/
-      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-    volumes:
-      - n8n_data:/home/node/.n8n
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:5678/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 
-  # Nginx service for routing traffic
+services:
+  # Nginx reverse proxy
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -39,48 +14,57 @@ services:
       - prod
       - n8n
     networks:
-      - app-network
+      - akane-network
     environment:
       - NGINX_HOST=akane.production
     healthcheck:
       test: ["CMD", "nginx", "-t"]
-      interval: 1m
+      interval: 60s
       timeout: 5s
       retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Build service for creating dist files
-  build:
-    build:
-      context: ./landing
-      dockerfile: Dockerfile
-      target: build
-      args:
-        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-        - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-    volumes:
-      - dist_data:/app/dist
+  # n8n workflow automation
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
     environment:
+      - N8N_HOST=n8n
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
       - NODE_ENV=production
-      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
-    command: >
-      sh -c "
-        mkdir -p /app/dist &&
-        npm run build &&
-        echo 'Build completed. Copying to volume...' &&
-        cp -r /app/dist/* /app/dist/ &&
-        chmod -R 755 /app/dist
-      "
+      - WEBHOOK_URL=https://akane.production/n8n/
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+    volumes:
+      - n8n_data:/home/node/.n8n
     networks:
-      - app-network
+      - akane-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Production service for backend API and serving static files
+  # Production API and static server
   prod:
     build:
       context: ./landing
       dockerfile: Dockerfile
+      target: production
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    depends_on:
+      - build
     environment:
       - NODE_ENV=production
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
@@ -89,20 +73,51 @@ services:
     volumes:
       - dist_data:/app/dist:ro
     networks:
-      - app-network
+      - akane-network
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Build service
+  build:
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
+      target: builder
+      args:
+        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+    volumes:
+      - dist_data:/app/dist
+    environment:
+      - NODE_ENV=production
+      - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+    command: >
+      sh -c "
+        mkdir -p /app/dist &&
+        cp -r dist/* /app/dist/ &&
+        chmod -R 755 /app/dist
+      "
+    networks:
+      - akane-network
 
 networks:
-  app-network:
+  akane-network:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   n8n_data:
-    driver: local
+    name: akane_n8n_data
   dist_data:
-    name: akane_landing_dist_data
+    name: akane_dist_data

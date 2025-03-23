@@ -1,47 +1,53 @@
-FROM node:18-alpine AS build
+# Modern Dockerfile with optimized build process
+FROM node:20-alpine AS base
 
+# Set working directory
 WORKDIR /app
 
-# Install dependencies for better caching
-COPY package*.json ./
+# Dependencies stage - splits dependencies for better layer caching
+FROM base AS deps
+RUN apk add --no-cache libc6-compat curl
+COPY package.json package-lock.json ./
+RUN npm ci --only=production
+RUN cp -R node_modules prod_modules
 RUN npm ci
 
-# Copy source code
+# Development stage
+FROM base AS development
+ENV NODE_ENV=development
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+EXPOSE 5173 3000
+CMD ["sh", "-c", "npm run dev -- --host 0.0.0.0 & node server/index.js"]
 
-# Build the application
-ARG TWITCH_CLIENT_ID
-ENV VITE_TWITCH_CLIENT_ID=$TWITCH_CLIENT_ID
+# Builder stage for production artifacts
+FROM base AS builder
 ENV NODE_ENV=production
-
-# Build the application
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine AS production
-
+FROM base AS production
+ENV NODE_ENV=production
 WORKDIR /app
 
-# Install production dependencies only
-COPY package*.json ./
-RUN npm ci --only=production
+# Only copy production dependencies and built files
+COPY --from=deps /app/prod_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/public ./public
+COPY package.json ./
 
-# Copy server files
-COPY server ./server
-COPY public ./public
+# Security: Run as non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nodejs && \
+    chown -R nodejs:nodejs /app
+USER nodejs
 
-# Create dist directory - will be mounted as a volume
-RUN mkdir -p /app/dist
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Expose port
 EXPOSE 3000
-
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD wget -qO- http://localhost:3000/health || exit 1
-
-# Start server
 CMD ["node", "server/index.js"]
