@@ -1,5 +1,5 @@
 // services/twitch/twitch-types.ts
-// Updated with subscription types
+// Enhanced type definitions with improved subscription support
 
 /**
  * Authentication data structure
@@ -69,27 +69,15 @@ export interface TwitchAuthData {
     broadcaster_id: string;
     broadcaster_login: string; 
     broadcaster_name: string;
-    gifter_id: string;
-    gifter_login: string;
-    gifter_name: string;
+    gifter_id?: string;
+    gifter_login?: string;
+    gifter_name?: string;
     is_gift: boolean;
     plan_name: string;
     tier: string; // "1000", "2000", or "3000"
     user_id: string;
     user_name: string;
     user_login: string;
-  }
-  
-  /**
-   * Subscriptions response structure
-   */
-  export interface TwitchSubscriptions {
-    data: TwitchSubscription[];
-    pagination: {
-      cursor?: string;
-    };
-    total: number;
-    points: number; // Subscription points earned by broadcaster
   }
   
   /**
@@ -107,13 +95,16 @@ export interface TwitchAuthData {
    * Follow relationship structure
    */
   export interface TwitchFollow {
-    from_id: string;
-    from_login: string;
-    from_name: string;
-    to_id: string;
-    to_login: string;
-    to_name: string;
     followed_at: string;
+    from_id?: string;
+    from_login?: string;
+    from_name?: string;
+    to_id?: string;
+    to_login?: string;
+    to_name?: string;
+    user_id?: string;     // New API format
+    user_login?: string;  // New API format
+    user_name?: string;   // New API format
   }
   
   /**
@@ -142,6 +133,7 @@ export interface TwitchAuthData {
     channel: TwitchChannel | null;
     followers: TwitchFollowers;
     isLive: boolean;
+    subscriberCount: number | null; // Added subscriber count 
     stats: {
       followerCount: number;
       viewerCount: number;
@@ -154,26 +146,6 @@ export interface TwitchAuthData {
   }
   
   /**
-   * Unified event structure (for live streams or scheduled events)
-   */
-  export interface TwitchEvent {
-    type: 'live' | 'scheduled';
-    id: string;
-    broadcaster_id: string;
-    broadcaster_name: string;
-    title: string;
-    game_name?: string;
-    thumbnail_url?: string;
-    viewer_count?: number;
-    started_at?: string;
-    category?: string;
-    start_time?: string;
-    end_time?: string;
-    profile_image_url?: string;
-    is_following?: boolean;
-  }
-  
-  /**
    * API request options
    */
   export interface TwitchRequestOptions {
@@ -182,6 +154,8 @@ export interface TwitchAuthData {
     data?: Record<string, unknown>;
     token?: string | null;
     userToken?: string | null;
+    requiresUserToken?: boolean;
+    cacheKey?: string | null; // Added cache key support
   }
   
   /**
@@ -189,6 +163,23 @@ export interface TwitchAuthData {
    */
   export interface TwitchResponse<T> {
     data: T[];
+    pagination?: {
+      cursor?: string;
+    };
+    total?: number;
+    points?: number;
+  }
+  
+  /**
+   * Twitch Schedule structure
+   */
+  export interface TwitchSchedule {
+    data: {
+      segments: TwitchScheduleSegment[];
+      broadcaster_id?: string;
+      broadcaster_name?: string;
+      broadcaster_login?: string;
+    };
     pagination?: {
       cursor?: string;
     };
