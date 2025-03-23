@@ -19,7 +19,7 @@ ENV NODE_ENV=production
 RUN mkdir -p dist && npm run build
 
 # Production stage
-FROM node:18-alpine as production
+FROM node:18-alpine AS production
 
 WORKDIR /app
 

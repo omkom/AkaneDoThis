@@ -90,8 +90,9 @@ docker volume rm akane_landing_dist_data || true
 
 # Clean previous build artifacts
 log "Cleaning previous build artifacts..."
-rm -rf landing/dist
+#rm -rf landing/dist
 check_error "Failed to clean dist directory"
+#
 mkdir -p landing/dist
 check_error "Failed to create clean dist directory"
 

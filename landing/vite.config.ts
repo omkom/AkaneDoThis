@@ -9,7 +9,6 @@ dotenv.config();
 
 export default defineConfig(({ mode }) => {
   // Load env vars from .env files with Vite's built-in method
-  // This properly handles .env, .env.local, .env.[mode], .env.[mode].local
   const env = loadEnv(mode, process.cwd(), ['VITE_', 'PUBLIC_', 'TWITCH_']);
   
   // Expose environment variables to client code
@@ -21,6 +20,7 @@ export default defineConfig(({ mode }) => {
   });
 
   return {
+    root: '.', // Explicitly set the root directory
     plugins: [react()],
     
     // Resolve path aliases
@@ -33,11 +33,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     
-    // Configure dev server
     server: {
       port: 5173,
       proxy: {
-        // Proxy API requests to Express server
         '/api': {
           target: 'http://localhost:3000',
           changeOrigin: true,
@@ -46,36 +44,18 @@ export default defineConfig(({ mode }) => {
       }
     },
     
-    // Optimize dependencies
-    optimizeDeps: {
-      exclude: ['lucide-react'],
-      include: ['react', 'react-dom', 'react-icons'],
-    },
-    
-    // Build configuration
     build: {
       outDir: 'dist',
       emptyOutDir: true,
       sourcemap: mode !== 'production',
       minify: mode === 'production',
       target: 'es2020',
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            // Split vendor chunks for better caching
-            react: ['react', 'react-dom'],
-            icons: ['react-icons'],
-            twitch: ['./services/twitch/twitch-client.ts', './services/twitch/twitch-api.ts']
-          }
-        }
-      }
     },
     
     // Define global constants
     define: {
       ...envWithProcessPrefix,
       __ENV__: JSON.stringify(mode),
-      // Properly replace process.env in client code
       'process.env.NODE_ENV': JSON.stringify(mode),
       'import.meta.env.VITE_TWITCH_CLIENT_ID': JSON.stringify(
         env.VITE_TWITCH_CLIENT_ID || env.TWITCH_CLIENT_ID || ''
