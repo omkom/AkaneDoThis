@@ -13,8 +13,8 @@ export default async function handler(req, res) {
 
   try {
     // Get environment variables
-    const clientId = process.env.TWITCH_CLIENT_ID;
-    const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+    const clientId = process.env.VITE_TWITCH_CLIENT_ID || process.env.TWITCH_CLIENT_ID;
+    const clientSecret = process.env.VITE_TWITCH_CLIENT_SECRET || process.env.TWITCH_CLIENT_SECRET;
     
     if (!clientId || !clientSecret) {
       console.error('Missing Twitch API credentials');

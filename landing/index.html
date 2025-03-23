@@ -2,8 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Environment Variable Loader -->
+    <script>
+      window.ENV = window.ENV || {};
+      document.querySelectorAll('meta[name^="env-"]').forEach((meta) => {
+        const name = meta.getAttribute('name')?.replace('env-', '');
+        const value = meta.getAttribute('content');
+        if (name && value) {
+          window.ENV[name] = value;
+          if (name === 'TWITCH_CLIENT_ID') {
+            window.TWITCH_CLIENT_ID = value;
+          }
+        }
+      });
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AkaneDoThis</title>
+    <title>AkaneDoThis - Streamer Twitch Français</title>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
 
     <!-- Google Tag Manager -->
@@ -32,25 +46,6 @@
     <!-- Easter Egg Script -->
     <script defer src="/js/cubi-easter-egg.js"></script>
 
-    <!-- Environment Variable Loader -->
-    <script>
-      window.ENV = window.ENV || {};
-      document.addEventListener('DOMContentLoaded', () => {
-        document
-          .querySelectorAll('meta[name^="env-"]')
-          .forEach((meta) => {
-            const name = meta.getAttribute('name')?.replace('env-', '');
-            const value = meta.getAttribute('content');
-            if (name && value) {
-              window.ENV[name] = value;
-              if (name === 'TWITCH_CLIENT_ID') {
-                window.TWITCH_CLIENT_ID = value;
-              }
-            }
-          });
-        console.log('[ENV] Loaded:', window.ENV);
-      });
-    </script>
   </head>
 
   <body>

@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 
 // Configure environment variables to expose to the client
 const clientEnv = {
-  TWITCH_CLIENT_ID: process.env.TWITCH_CLIENT_ID,
+  TWITCH_CLIENT_ID: process.env.VITE_TWITCH_CLIENT_ID || process.env.TWITCH_CLIENT_ID,
   PUBLIC_API_URL: process.env.PUBLIC_API_URL || '',
 };
 
@@ -45,8 +45,8 @@ app.get('/health', (req, res) => {
 app.post('/api/twitch/app-token', async (req, res) => {
   try {
     // Get environment variables
-    const clientId = process.env.TWITCH_CLIENT_ID;
-    const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+    const clientId = process.env.VITE_TWITCH_CLIENT_ID || process.env.TWITCH_CLIENT_ID;
+    const clientSecret = process.env.VITE_TWITCH_CLIENT_SECRET || process.env.TWITCH_CLIENT_SECRET;
     
     if (!clientId || !clientSecret) {
       console.error('Missing Twitch API credentials');
@@ -82,7 +82,7 @@ app.post('/api/twitch/app-token', async (req, res) => {
 app.get('/api/twitch/:endpoint', async (req, res) => {
   try {
     const { endpoint } = req.params;
-    const clientId = process.env.TWITCH_CLIENT_ID;
+    const clientId = process.env.VITE_TWITCH_CLIENT_ID || process.env.TWITCH_CLIENT_ID;
     
     if (!clientId) {
       return res.status(500).json({ error: 'Missing Twitch client ID' });
@@ -155,6 +155,6 @@ if (process.env.NODE_ENV === 'development') {
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Twitch Client ID: ${process.env.TWITCH_CLIENT_ID ? '✅ Set' : '❌ Not set'}`);
-  console.log(`Twitch Client Secret: ${process.env.TWITCH_CLIENT_SECRET ? '✅ Set' : '❌ Not set'}`);
+  console.log(`Twitch Client ID: ${process.env.VITE_TWITCH_CLIENT_ID || process.env.TWITCH_CLIENT_ID ? '✅ Set' : '❌ Not set'}`);
+  console.log(`Twitch Client Secret: ${process.env.VITE_TWITCH_CLIENT_SECRET || process.env.TWITCH_CLIENT_SECRET ? '✅ Set' : '❌ Not set'}`);
 });
