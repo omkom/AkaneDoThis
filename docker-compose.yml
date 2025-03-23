@@ -10,8 +10,9 @@ services:
     volumes:
       - .:/app
       - /app/node_modules  # Exclude node_modules from mounting
+      - /app/dist  # Exclude dist from mounting
     ports:
-      - "5173:5173"  # Vite dev server
+      - "5174:5173"  # Vite dev server
       - "3000:3000"  # Express API server
     environment:
       - NODE_ENV=development
@@ -40,7 +41,16 @@ services:
       - NODE_ENV=production
       - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - VITE_TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
-    command: npm run build
+    command: >
+      sh -c "
+        if [ ! -f 'index.html' ]; then
+          echo 'Creating index.html file...'
+          echo '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /><title>AkaneDoThis</title></head><body><div id=\"root\"></div><script type=\"module\" src=\"/src/main.tsx\"></script></body></html>' > index.html;
+        fi &&
+        mkdir -p dist &&
+        npm run build &&
+        echo 'Build completed. Copying to volume...'
+      "
 
   # Production service
   prod:

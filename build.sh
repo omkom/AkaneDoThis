@@ -92,8 +92,7 @@ docker volume rm akane_landing_dist_data || true
 log "Cleaning previous build artifacts..."
 #rm -rf landing/dist
 check_error "Failed to clean dist directory"
-#
-mkdir -p landing/dist
+#mkdir -p landing/dist
 check_error "Failed to create clean dist directory"
 
 # Clean Docker cache
@@ -115,15 +114,31 @@ cd landing
 export TWITCH_CLIENT_ID
 export TWITCH_CLIENT_SECRET
 
-# Build the Docker image
-log "Building Docker image..."
+# Rebuild with additional diagnostics
+echo "🔄 Rebuilding Docker containers with improved diagnostics..."
 docker compose build --no-cache build
 check_error "Failed to rebuild Docker image"
 
 # Run the build command to generate the dist directory
-log "Running build process..."
+echo "🚀 Running build process..."
 docker compose run --rm build
-check_error "Build process failed"
+#check_error "Build process failed"
+
+# Check if the build succeeded
+if [ $? -eq 0 ]; then
+  echo "✅ Build process completed successfully"
+  echo "🔍 Checking dist volume..."
+  docker run --rm -v akane_landing_dist_data:/dist alpine ls -la /dist
+  
+  echo "🚀 Starting production environment..."
+  docker compose up -d prod nginx
+  echo "✅ System is now running"
+  echo "🌐 Access the site at http://localhost:80"
+else
+  echo "❌ Build process failed"
+  echo "📋 Checking for additional diagnostic information..."
+  docker-compose logs build
+fi
 
 # Verify build output
 log "Verifying build output..."

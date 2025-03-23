@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => {
     
     // Resolve path aliases
     resolve: {
+      root: resolve(__dirname, './dist'),
       alias: {
         '@': resolve(__dirname, './src'),
         '@components': resolve(__dirname, './src/components'),
