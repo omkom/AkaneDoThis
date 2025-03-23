@@ -9,7 +9,7 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - NODE_ENV=production
-      - N8N_RUNNERS_ENABLED=generic
+      - N8N_RUNNERS_ENABLED
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - WEBHOOK_URL=http://localhost:5678/
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}

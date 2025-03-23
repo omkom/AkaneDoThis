@@ -38,6 +38,8 @@ function getClientId(): string {
     
     // In production, throw an error instead of using a fallback
     if (process.env.NODE_ENV === 'production') {
+      const fallbackId = "udrg080q6g8t7qbhgo67x0ytt08otn"; // Demo/placeholder
+      console.warn(`Using fallback Twitch client ID: ${fallbackId}`);
       throw new Error('No Twitch client ID found in production environment');
     }
     
