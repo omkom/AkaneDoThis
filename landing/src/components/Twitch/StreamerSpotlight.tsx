@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { FaTwitch, FaPlay, FaInfoCircle, FaUsers, FaStar, FaHeart, FaRegHeart } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FaTwitch, FaPlay, FaUsers, FaStar, FaHeart, FaRegHeart } from 'react-icons/fa';
 import { trackClick } from '../../utils/analytics';
 
 // Import Twitch services
 import { 
   getChannelData, 
-  getBroadcasterByLogin,
   checkFollowing,
   followChannel,
   unfollowChannel 
@@ -14,14 +13,12 @@ import {
 import {
   TwitchAuthData,
   TwitchChannelData,
-  TwitchUserData
 } from '../../../services/twitch/twitch-types';
 
 import {
   formatNumber,
   getStreamDuration,
   getTwitchChannelUrl,
-  TWITCH_CONFIG
 } from '../../../services/twitch/twitch-client';
 
 import {
@@ -31,6 +28,18 @@ import {
 
 // Default channel name if none is provided
 const DEFAULT_CHANNEL_NAME = 'akanedothis';
+
+// Throttle function to prevent excessive API calls
+function throttle(func, delay) {
+  let lastCall = 0;
+  return function(...args) {
+    const now = Date.now();
+    if (now - lastCall >= delay) {
+      lastCall = now;
+      return func(...args);
+    }
+  };
+}
 
 interface StreamerSpotlightProps {
   channelName?: string;
@@ -68,47 +77,88 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
   const [subscriberCount, setSubscriberCount] = useState<number>(0);
   const [showAuthPopup, setShowAuthPopup] = useState<boolean>(false);
   
-  // Check for existing authentication on component mount
+  // Refs to prevent rerendering and keep track of previous state
+  const authDataRef = useRef<TwitchAuthData | null>(null);
+  const channelDataRef = useRef<Partial<TwitchChannelData>>(channelData);
+  const isInitialLoadRef = useRef<boolean>(true);
+  const lastAuthCheckRef = useRef<number>(0);
+  const lastFollowCheckRef = useRef<number>(0);
+  const lastFetchRef = useRef<number>(0);
+  
+  // Throttled API functions
+  const throttledCheckFollowing = useCallback(
+    throttle(async (token: string, userId: string, broadcasterId: string) => {
+      if (!broadcasterId || !userId) return;
+      
+      try {
+        // Record time of check
+        lastFollowCheckRef.current = Date.now();
+        
+        const isFollowing = await checkFollowing(userId, broadcasterId);
+        setIsFollowing(isFollowing);
+      } catch (err) {
+        console.error('Error checking follow status:', err);
+      }
+    }, 10000), // Only check follow status once every 10 seconds max
+    []
+  );
+  
+  // Check for existing authentication on component mount - only once
   useEffect(() => {
     const checkAuth = async () => {
+      // Don't check auth if we already did recently
+      const now = Date.now();
+      if (now - lastAuthCheckRef.current < 30000) return; // 30 second cooldown
+      
+      lastAuthCheckRef.current = now;
       const storedAuth = getStoredAuth();
+      
       if (storedAuth) {
-        // Validate token before using it
-        try {
-          const isValid = await validateToken(storedAuth.token);
-          if (isValid && channelData.broadcaster) {
-            setAuthData(storedAuth);
-            checkIsFollowing(storedAuth.token, storedAuth.userData.id, channelData.broadcaster.id);
-          } else if (!isValid) {
-            console.log("Token invalid");
+        // Only validate if we don't already have auth data
+        if (!authDataRef.current) {
+          try {
+            const isValid = await validateToken(storedAuth.token);
+            if (isValid) {
+              setAuthData(storedAuth);
+              authDataRef.current = storedAuth;
+              
+              // Check follow status only if we have broadcaster data
+              if (channelDataRef.current?.broadcaster) {
+                throttledCheckFollowing(
+                  storedAuth.token, 
+                  storedAuth.userData.id, 
+                  channelDataRef.current.broadcaster.id
+                );
+              }
+            }
+          } catch (err) {
+            console.error("Error validating token:", err);
           }
-        } catch (err) {
-          console.error("Error validating token:", err);
         }
       }
     };
     
     checkAuth();
-  }, []);
+  }, []); // Empty dependency array - run only once on mount
   
-  // Check if follow status changes when broadcaster data is updated
+  // Check follow status when either auth data or broadcaster changes - but avoid circular updates
   useEffect(() => {
-    if (authData && authData.token && channelData.broadcaster) {
-      checkIsFollowing(authData.token, authData.userData.id, channelData.broadcaster.id);
-    }
-  }, [authData, channelData.broadcaster]);
-
-  // Function to check if the user is following the channel
-  const checkIsFollowing = async (token: string, userId: string, broadcasterId: string) => {
-    if (!broadcasterId || !userId) return;
+    // Update refs
+    authDataRef.current = authData;
+    channelDataRef.current = channelData;
     
-    try {
-      const isFollowing = await checkFollowing(userId, broadcasterId);
-      setIsFollowing(isFollowing);
-    } catch (err) {
-      console.error('Error checking follow status:', err);
+    if (authData?.token && channelData?.broadcaster?.id) {
+      // Only check if we haven't done so recently
+      const now = Date.now();
+      if (now - lastFollowCheckRef.current > 10000) { // 10 second cooldown
+        throttledCheckFollowing(
+          authData.token,
+          authData.userData.id,
+          channelData.broadcaster.id
+        );
+      }
     }
-  };
+  }, [authData, channelData?.broadcaster?.id, throttledCheckFollowing]);
   
   // Show the auth popup
   const showLoginPopup = () => {
@@ -210,10 +260,17 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           throw new Error('No authentication token received');
         }
         
+        // Update state and ref
         setAuthData(auth);
+        authDataRef.current = auth;
         
-        if (channelData.broadcaster) {
-          checkIsFollowing(auth.token, auth.userData.id, channelData.broadcaster.id);
+        // Check follow status only if we have broadcaster data
+        if (channelDataRef.current?.broadcaster) {
+          throttledCheckFollowing(
+            auth.token,
+            auth.userData.id,
+            channelDataRef.current.broadcaster.id
+          );
         }
         
         // Track login
@@ -302,60 +359,136 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
     }
   };
   
-  // Fetch channel data
+  // Fetch channel data - optimized to avoid excessive dependencies and rerenders
   const fetchChannelData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    // Implement throttling to prevent excessive API calls
+    const now = Date.now();
+    if (!isInitialLoadRef.current && now - lastFetchRef.current < 30000) {
+      return; // Don't fetch more than once every 30 seconds for refreshes
+    }
+    lastFetchRef.current = now;
+    
+    // Only show loading on initial load
+    if (isInitialLoadRef.current) {
+      setIsLoading(true);
+      setError(null);
+    }
     
     try {
       // Use the service to get all channel data
       const data = await getChannelData(channelName);
-      setChannelData(data);
       
-      // Estimate subscriber count based on broadcaster type
-      // This is a fallback since we likely don't have proper subscription scope
-      if (data.broadcaster) {
-        let subCount = 0;
+      if (isInitialLoadRef.current) {
+        // Full update on initial load
+        setChannelData(data);
         
-        if (data.broadcaster.broadcaster_type === 'partner') {
-          subCount = Math.floor(Math.random() * 2000) + 500;
-        } else if (data.broadcaster.broadcaster_type === 'affiliate') {
-          subCount = Math.floor(Math.random() * 300) + 50;
+        // Estimate subscriber count based on broadcaster type
+        if (data.broadcaster) {
+          let subCount = 0;
+          
+          if (data.broadcaster.broadcaster_type === 'partner') {
+            subCount = Math.floor(Math.random() * 2000) + 500;
+          } else if (data.broadcaster.broadcaster_type === 'affiliate') {
+            subCount = Math.floor(Math.random() * 300) + 50;
+          }
+          
+          setSubscriberCount(subCount);
         }
         
-        setSubscriberCount(subCount);
+        // After initial load, set ref to false
+        isInitialLoadRef.current = false;
+      } else {
+        // For refreshes, only update certain fields to minimize re-renders
+        // Check if live status changed
+        if (data.isLive !== channelDataRef.current.isLive) {
+          setChannelData(prevData => ({
+            ...prevData,
+            isLive: data.isLive,
+            stream: data.stream,
+            stats: {
+              ...prevData.stats,
+              viewerCount: data.stats?.viewerCount || 0,
+              streamTitle: data.stats?.streamTitle || prevData.stats?.streamTitle || '',
+              startedAt: data.stats?.startedAt || null,
+              game: data.stats?.game || prevData.stats?.game || ''
+            }
+          }));
+        } else if (data.isLive) {
+          // Only update viewer count and other dynamic fields
+          setChannelData(prevData => ({
+            ...prevData,
+            stats: {
+              ...prevData.stats,
+              viewerCount: data.stats?.viewerCount || 0
+            }
+          }));
+        }
+        
+        // Selectively update broadcaster and follower data if it changed
+        if (data.broadcaster?.id !== channelDataRef.current.broadcaster?.id ||
+            data.followers?.total !== channelDataRef.current.followers?.total) {
+          setChannelData(prevData => ({
+            ...prevData,
+            broadcaster: data.broadcaster || prevData.broadcaster,
+            followers: data.followers || prevData.followers,
+            stats: {
+              ...prevData.stats,
+              followerCount: data.stats?.followerCount || prevData.stats?.followerCount || 0
+            }
+          }));
+        }
       }
       
-      // Check follow status if user is authenticated
-      if (authData && data.broadcaster) {
-        checkIsFollowing(authData.token, authData.userData.id, data.broadcaster.id);
+      // Clear any errors on successful fetch
+      if (error) setError(null);
+      
+      // Update the ref after successful fetch
+      channelDataRef.current = data;
+      
+      // Check follow status only if authenticated and not checked recently
+      if (authDataRef.current?.token && data.broadcaster?.id) {
+        const now = Date.now();
+        if (now - lastFollowCheckRef.current > 10000) { // 10 second cooldown
+          throttledCheckFollowing(
+            authDataRef.current.token,
+            authDataRef.current.userData.id,
+            data.broadcaster.id
+          );
+        }
       }
     } catch (err) {
       console.error('Error fetching channel data:', err);
-      setError('Failed to load channel data');
       
-      // Set fallback data so UI doesn't break
-      setChannelData({
-        broadcaster: null,
-        stream: null,
-        channel: null,
-        followers: { total: 0, data: [] },
-        isLive: false,
-        stats: {
-          followerCount: 8754, // Fallback data
-          viewerCount: 0,
-          streamTitle: 'Check out our Twitch channel!',
-          game: '',
-          startedAt: null,
-          thumbnailUrl: null,
-          tags: []
-        }
-      });
-      setSubscriberCount(342); // Fallback subscriber count
+      if (isInitialLoadRef.current) {
+        // Only show error and fallback data on initial load
+        setError('Failed to load channel data');
+        
+        // Set fallback data so UI doesn't break
+        setChannelData({
+          broadcaster: null,
+          stream: null,
+          channel: null,
+          followers: { total: 0, data: [] },
+          isLive: false,
+          stats: {
+            followerCount: 8754, // Fallback data
+            viewerCount: 0,
+            streamTitle: 'Check out our Twitch channel!',
+            game: '',
+            startedAt: null,
+            thumbnailUrl: null,
+            tags: []
+          }
+        });
+        setSubscriberCount(342); // Fallback subscriber count
+      }
     } finally {
-      setIsLoading(false);
+      // Only update loading state on initial load
+      if (isInitialLoadRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [channelName, authData]);
+  }, [channelName, error, throttledCheckFollowing]); // Minimal dependencies
 
   // Fetch data on component mount and set refresh interval
   useEffect(() => {
@@ -371,7 +504,11 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
     // Add visibility change listener to refresh when tab becomes visible
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        fetchChannelData();
+        // When tab becomes visible, only fetch if it's been more than 30 seconds
+        const now = Date.now();
+        if (now - lastFetchRef.current > 30000) {
+          fetchChannelData();
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -395,37 +532,44 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
     trackClick('twitch', 'watch');
   };
 
+  // Extract values from channel data
+  const { isLive, stats } = channelData;
+
+  // Create a fixed-height container for content to prevent layout shifts
+  const minHeight = "200px";
+  
   // Loading state
   if (isLoading) {
     return (
-      <div className="streamer-spotlight-container rounded-lg backdrop-blur-sm border border-neon-pink p-4 md:p-6 animate-pulse">
-        <div className="h-6 w-24 bg-neon-pink/30 rounded mb-2"></div>
-        <div className="h-4 w-32 bg-electric-blue/30 rounded mb-4"></div>
-        <div className="h-10 w-full bg-neon-pink/20 rounded"></div>
+      <div className="streamer-spotlight-container w-full max-w-md mx-auto mt-6" style={{ minHeight }}>
+        <div className="neo-card neo-card-purple p-4 md:p-6 rounded-lg backdrop-blur-sm animate-pulse h-full">
+          <div className="h-6 w-24 bg-neon-pink/30 rounded mb-2"></div>
+          <div className="h-4 w-32 bg-electric-blue/30 rounded mb-4"></div>
+          <div className="h-10 w-full bg-neon-pink/20 rounded"></div>
+        </div>
       </div>
     );
   }
-
-  // Extract values from channel data
-  const { isLive, stats } = channelData;
   
   return (
-    <div className="streamer-spotlight-container w-full max-w-md mx-auto mt-6">
+    <div className="streamer-spotlight-container w-full max-w-md mx-auto mt-6" style={{ minHeight }}>
       <div className={`neo-card ${isLive ? 'neo-card-pink' : 'neo-card-purple'} p-4 md:p-6 rounded-lg backdrop-blur-sm relative overflow-hidden`}>
-        {/* Status badge */}
-        {isLive ? (
-          <div className="absolute -top-1 -right-1 bg-gradient-to-r from-red-600 to-neon-pink px-3 py-1 text-white text-sm font-cyber rounded-bl-lg rounded-tr-lg flex items-center">
-            <span className="relative flex h-3 w-3 mr-1">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-            </span>
-            LIVE NOW
-          </div>
-        ) : (
-          <div className="absolute -top-1 -right-1 bg-gray-700 px-3 py-1 text-gray-300 text-sm font-cyber rounded-bl-lg rounded-tr-lg">
-            OFFLINE
-          </div>
-        )}
+        {/* Status badge - fixed size and position to prevent layout shift */}
+        <div className="absolute -top-1 -right-1 px-3 py-1 text-sm font-cyber rounded-bl-lg rounded-tr-lg h-7 flex items-center">
+          {isLive ? (
+            <div className="bg-gradient-to-r from-red-600 to-neon-pink text-white flex items-center">
+              <span className="relative flex h-3 w-3 mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </span>
+              LIVE NOW
+            </div>
+          ) : (
+            <div className="bg-gray-700 text-gray-300">
+              OFFLINE
+            </div>
+          )}
+        </div>
 
         {/* Twitch logo and streamer name */}
         <div className="flex items-center mb-3">
@@ -433,8 +577,8 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           <h4 className={`font-cyber ${isLive ? 'text-neon-pink' : 'text-bright-purple'}`}>{channelName}</h4>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        {/* Stats row - fixed height to prevent layout shift */}
+        <div className="grid grid-cols-3 gap-2 mb-3 h-14">
           <div className="text-center">
             <div className="flex items-center justify-center text-neon-pink mb-1">
               <FaUsers className="mr-1" />
@@ -470,8 +614,8 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           </div>
         </div>
 
-        {/* Stream info */}
-        <div className="mb-4">
+        {/* Stream info - fixed height to prevent layout shift */}
+        <div className="mb-4 min-h-12">
           <h5 className="text-white text-sm font-semibold line-clamp-1">
             {stats?.streamTitle || 'Check out our Twitch channel!'}
           </h5>
@@ -489,7 +633,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
         </div>
 
         {/* Action buttons - Watch and Follow */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 h-10">
           {/* Follow/Unfollow button */}
           <button 
             onClick={handleFollowToggle}
@@ -526,25 +670,29 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           </button>
         </div>
 
-        {/* Error message if any */}
-        {error && (
-          <div className="mt-3 p-2 bg-red-900/30 border border-red-500 text-red-200 rounded text-xs">
-            {error}
-          </div>
-        )}
+        {/* Error message if any - fixed height container */}
+        <div className="min-h-6 mt-3">
+          {error && (
+            <div className="p-2 bg-red-900/30 border border-red-500 text-red-200 rounded text-xs">
+              {error}
+            </div>
+          )}
+        </div>
 
-        {/* Login prompt if not authenticated */}
-        {!authData && !error && (
-          <div className="mt-3 p-2 bg-bright-purple/10 border border-bright-purple/30 rounded text-xs flex items-center justify-between">
-            <span className="text-bright-purple">Sign in with Twitch for more features</span>
-            <button 
-              onClick={showLoginPopup}
-              className="text-white bg-bright-purple/30 px-2 py-1 rounded text-xs hover:bg-bright-purple/50"
-            >
-              Connect
-            </button>
-          </div>
-        )}
+        {/* Login prompt if not authenticated - preserved space for layout consistency */}
+        <div className="min-h-10 mt-1">
+          {!authData && !error && (
+            <div className="mt-2 p-2 bg-bright-purple/10 border border-bright-purple/30 rounded text-xs flex items-center justify-between">
+              <span className="text-bright-purple">Sign in with Twitch for more features</span>
+              <button 
+                onClick={showLoginPopup}
+                className="text-white bg-bright-purple/30 px-2 py-1 rounded text-xs hover:bg-bright-purple/50"
+              >
+                Connect
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

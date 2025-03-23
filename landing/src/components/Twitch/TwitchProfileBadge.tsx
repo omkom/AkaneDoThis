@@ -1,14 +1,11 @@
-// landing/src/components/Twitch/TwitchProfileBadge.tsx
-// Updated with proper type imports and cleaned up inline implementations
-
 import React, { useState, useEffect, useRef } from 'react';
 import { FaTwitch, FaSignOutAlt, FaCog } from 'react-icons/fa';
 import { trackClick } from '../../utils/analytics';
-import { TwitchAuthData, TwitchUserData } from '../../../services/twitch/twitch-types';
+import { TwitchAuthData } from '../../../services/twitch/twitch-types';
 
 /**
  * TwitchProfileBadge Component
- * Displays the user's Twitch profile and provides login/logout functionality
+ * Displays user's Twitch profile with simplified authentication flow
  */
 const TwitchProfileBadge: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -18,32 +15,33 @@ const TwitchProfileBadge: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLButtonElement>(null);
 
-  // Check for existing authentication on component mount
+  // Check authentication on mount
   useEffect(() => {
-    const checkAuth = async () => {
-      if (typeof window !== 'undefined' && window.getTwitchAuth) {
+    checkAuthentication();
+  }, []);
+
+  // Check if user is authenticated
+  const checkAuthentication = async () => {
+    if (typeof window !== 'undefined' && window.getTwitchAuth) {
+      try {
         const storedAuth = window.getTwitchAuth();
         if (storedAuth) {
-          setAuthData(storedAuth);
-          
-          // Validate token before using it
-          try {
-            const isValid = await window.validateTwitchToken?.(storedAuth.token);
-            if (!isValid) {
-              // Token is invalid, log out
-              await window.logoutFromTwitch?.();
-              setAuthData(null);
-              setError("Your Twitch session has expired");
-            }
-          } catch (err) {
-            console.error("Error validating token:", err);
+          // Validate token before using
+          const isValid = await window.validateTwitchToken?.(storedAuth.token);
+          if (isValid) {
+            setAuthData(storedAuth);
+          } else {
+            // Token invalid, clean up
+            await window.logoutFromTwitch?.();
+            setAuthData(null);
           }
         }
+      } catch (err) {
+        console.error("Error validating token:", err);
+        setError("Authentication error");
       }
-    };
-    
-    checkAuth();
-  }, []);
+    }
+  };
 
   // Add click outside listener to close dropdown
   useEffect(() => {
@@ -64,13 +62,14 @@ const TwitchProfileBadge: React.FC = () => {
     };
   }, []);
 
-  // Function to handle login
+  // Handle Twitch login
   const handleLogin = async () => {
     setIsLoading(true);
     setError(null);
     
     try {
       if (typeof window !== 'undefined' && window.loginWithTwitch) {
+        // Request necessary scopes
         const auth = await window.loginWithTwitch([
           'user:read:follows',
           'user:read:subscriptions',
@@ -80,7 +79,7 @@ const TwitchProfileBadge: React.FC = () => {
         setAuthData(auth);
         trackClick('twitch', 'login-header');
       } else {
-        throw new Error('Twitch authentication function not available');
+        throw new Error('Twitch authentication not available');
       }
     } catch (err) {
       console.error("Login error:", err);
@@ -90,7 +89,7 @@ const TwitchProfileBadge: React.FC = () => {
     }
   };
 
-  // Function to handle logout
+  // Handle logout
   const handleLogout = async () => {
     setIsLoading(true);
     
@@ -108,10 +107,21 @@ const TwitchProfileBadge: React.FC = () => {
     }
   };
 
-  // Toggle dropdown
+  // Toggle dropdown visibility
   const toggleDropdown = () => {
     setShowDropdown(!showDropdown);
   };
+
+  // Hide error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   return (
     <div className="twitch-profile-badge relative">
@@ -121,6 +131,7 @@ const TwitchProfileBadge: React.FC = () => {
             ref={profileRef}
             onClick={toggleDropdown}
             className="flex items-center space-x-2 p-1.5 rounded hover:bg-black/30 transition"
+            aria-label="Twitch profile menu"
           >
             <img 
               src={authData.userData.profile_image_url} 
@@ -135,48 +146,53 @@ const TwitchProfileBadge: React.FC = () => {
           
           {showDropdown && (
             <>
-              {/* Mobile full-screen overlay */}
-              <div className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-40" onClick={() => setShowDropdown(false)} />
+              {/* Mobile overlay */}
+              <div 
+                className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-md z-40" 
+                onClick={() => setShowDropdown(false)} 
+              />
               
               {/* Dropdown content */}
               <div 
                 ref={dropdownRef}
-                className={`
-                  fixed md:absolute 
-                  md:top-full md:right-0 md:mt-1 md:w-64
-                  inset-x-0 bottom-0 md:bottom-auto 
-                  max-h-[66vh] md:max-h-none 
-                  neo-card neo-card-purple card-3d p-0 z-50 dropdown-menu
-                  ${window.innerWidth < 768 ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}
-                `}
+                className="fixed md:absolute md:top-full md:right-0 md:mt-1 md:w-64
+                          inset-x-0 bottom-0 md:bottom-auto max-h-[66vh] md:max-h-none 
+                          neo-card neo-card-purple card-3d p-0 z-50 dropdown-menu
+                          rounded-xl md:rounded-lg"
+                style={{
+                  borderTopLeftRadius: window.innerWidth < 768 ? '0.75rem' : '0',
+                  borderTopRightRadius: window.innerWidth < 768 ? '0.75rem' : '0',
+                  borderBottomLeftRadius: window.innerWidth < 768 ? '0' : '0.5rem',
+                  borderBottomRightRadius: window.innerWidth < 768 ? '0' : '0.5rem'
+                }}
               >
                 <div className="bg-bright-purple/30 backdrop-blur-md py-3 px-4 text-center border-b border-white/10">
                   <p className="text-sm font-medium font-cyber">{authData.userData.display_name}</p>
                   <p className="text-xs text-white/70">Connected with Twitch</p>
                 </div>
                 
-                <button 
-                  onClick={() => {
-                    window.location.href = `https://twitch.tv/${authData.userData.login}`;
-                    trackClick('twitch', 'view-profile');
-                  }}
+                <a 
+                  href={`https://twitch.tv/${authData.userData.login}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left"
+                  onClick={() => trackClick('twitch', 'view-profile')}
                 >
                   <FaTwitch className="text-bright-purple" />
                   <span>View Profile</span>
-                </button>
+                </a>
                 
-                <button 
+                <a 
+                  href="#twitch"
+                  className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left"
                   onClick={() => {
-                    window.location.href = "#twitch";
                     trackClick('twitch', 'manage-follows');
                     setShowDropdown(false);
                   }}
-                  className="flex items-center space-x-2 w-full px-3 py-3 text-sm hover:bg-bright-purple/20 transition text-left"
                 >
                   <FaCog className="text-gray-300" />
                   <span>Manage Follows</span>
-                </button>
+                </a>
                 
                 <button 
                   onClick={handleLogout}
@@ -195,6 +211,7 @@ const TwitchProfileBadge: React.FC = () => {
           onClick={handleLogin}
           disabled={isLoading}
           className="flex items-center space-x-1 px-3 py-1.5 bg-bright-purple/20 border border-bright-purple rounded text-white hover:bg-bright-purple/30 transition"
+          aria-label="Connect to Twitch"
         >
           <FaTwitch className="text-bright-purple" />
           <span className="text-sm font-cyber">{isLoading ? 'Connecting...' : 'Connect'}</span>
@@ -202,23 +219,12 @@ const TwitchProfileBadge: React.FC = () => {
       )}
       
       {error && (
-        <div className="absolute top-full right-0 mt-2 w-48 bg-red-900/90 text-white text-xs p-2 rounded">
+        <div className="absolute top-full right-0 mt-2 w-48 bg-red-900/90 text-white text-xs p-2 rounded z-50">
           {error}
         </div>
       )}
     </div>
   );
 };
-
-// Add window augmentation for TypeScript
-declare global {
-  interface Window {
-    loginWithTwitch?: (scopes: string[]) => Promise<TwitchAuthData>;
-    validateTwitchToken?: (token: string) => Promise<boolean>;
-    logoutFromTwitch?: (token?: string) => Promise<boolean>;
-    getTwitchAuth?: () => TwitchAuthData | null;
-    TWITCH_CLIENT_ID?: string;
-  }
-}
 
 export default TwitchProfileBadge;

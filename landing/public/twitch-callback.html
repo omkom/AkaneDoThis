@@ -5,10 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Twitch Authentication</title>
   <style>
+    :root {
+      --twitch-purple: #9146FF;
+      --twitch-dark: #0E0E10;
+      --twitch-light: #EFEFF1;
+      --twitch-success: #00FA7C;
+      --twitch-error: #F14669;
+    }
+    
     body {
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      background-color: #0e0e10;
-      color: #efeff1;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--twitch-dark);
+      color: var(--twitch-light);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -17,45 +25,81 @@
       padding: 0;
       text-align: center;
     }
+    
     .auth-container {
-      background-color: #18181b;
+      background-color: rgba(30, 30, 35, 0.95);
       border-radius: 8px;
       padding: 2rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
       max-width: 90%;
-      width: 400px;
+      width: 380px;
     }
-    .success {
-      color: #00fa7c;
-    }
-    .error {
-      color: #f14669;
-    }
+    
     .logo {
       margin-bottom: 1.5rem;
     }
+    
+    .logo svg {
+      width: 40px;
+      height: 40px;
+    }
+    
+    h2 {
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    
+    .success {
+      color: var(--twitch-success);
+      font-weight: 500;
+    }
+    
+    .error {
+      color: var(--twitch-error);
+      font-weight: 500;
+    }
+    
     .spinner {
       display: inline-block;
       width: 20px;
       height: 20px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.2);
       border-radius: 50%;
-      border-top-color: #9146ff;
-      animation: spin 1s ease-in-out infinite;
+      border-top-color: var(--twitch-purple);
+      animation: spin 0.8s linear infinite;
       margin-right: 0.5rem;
+      vertical-align: middle;
     }
+    
     @keyframes spin {
       to { transform: rotate(360deg); }
+    }
+    
+    .button {
+      background-color: var(--twitch-purple);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 1rem;
+      font-weight: 500;
+    }
+    
+    .button:hover {
+      background-color: #7925EB;
+    }
+    
+    #status {
+      margin: 1.5rem 0;
     }
   </style>
 </head>
 <body>
   <div class="auth-container">
     <div class="logo">
-      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M9.41 33.9L3.3 27.79V5.5H32.11V21.79L25.36 28.54H19.14L14.57 33.11H9.41V33.9Z" fill="#9146FF"/>
-        <path d="M7.94 9.99H11.03V19.21H7.94V9.99Z" fill="white"/>
-        <path d="M19.05 9.99H22.14V19.21H19.05V9.99Z" fill="white"/>
         <path d="M7.94 9.99H11.03V19.21H7.94V9.99Z" fill="white"/>
         <path d="M19.05 9.99H22.14V19.21H19.05V9.99Z" fill="white"/>
       </svg>
@@ -67,69 +111,104 @@
     </div>
     
     <script>
-      // Extract the access token from the URL hash
-      function extractHashParams() {
-        const hashParams = {};
-        const hash = window.location.hash.substring(1);
-        
-        if (hash) {
-          const params = hash.split('&');
+      (function() {
+        // Extract hash parameters from URL
+        function getHashParams() {
+          const hashParams = {};
+          const hash = window.location.hash.substring(1);
           
-          for (let i = 0; i < params.length; i++) {
-            const keyValue = params[i].split('=');
-            hashParams[keyValue[0]] = decodeURIComponent(keyValue[1]);
+          if (hash) {
+            hash.split('&').forEach(param => {
+              const [key, value] = param.split('=');
+              hashParams[key] = decodeURIComponent(value);
+            });
+          }
+          
+          return hashParams;
+        }
+
+        // Process the authentication result
+        function processAuth() {
+          const statusElement = document.getElementById('status');
+          const params = getHashParams();
+          
+          if (params.access_token) {
+            // Success - we have a token
+            statusElement.innerHTML = '<p class="success">Authentication successful!</p><p>You can now close this window.</p>';
+            
+            // Send token back to parent window
+            sendTokenToParent(params.access_token, params.state);
+            
+            // Auto-close after 3 seconds if possible
+            setTimeout(() => {
+              try {
+                window.close();
+              } catch (err) {
+                // Cannot auto-close, show close button
+                statusElement.innerHTML += '<button class="button" onclick="window.close()">Close Window</button>';
+              }
+            }, 3000);
+          } 
+          else if (params.error) {
+            // Error from Twitch
+            const errorMsg = params.error_description || params.error;
+            statusElement.innerHTML = `
+              <p class="error">Authentication failed</p>
+              <p>${errorMsg}</p>
+              <button class="button" onclick="window.close()">Close Window</button>
+            `;
+          } 
+          else {
+            // Missing auth data
+            statusElement.innerHTML = `
+              <p class="error">No authentication data found</p>
+              <p>Please try again or contact support if the issue persists.</p>
+              <button class="button" onclick="window.close()">Close Window</button>
+            `;
           }
         }
-        
-        return hashParams;
-      }
 
-      // Handle the authentication process
-      function handleAuthentication() {
-        const statusElement = document.getElementById('status');
-        const params = extractHashParams();
-        
-        if (params.access_token) {
-          statusElement.innerHTML = '<p class="success">Authentication successful!</p><p>You can close this window now.</p>';
-          
-          // Send the token back to the parent window
+        // Send token back to parent window
+        function sendTokenToParent(token, state) {
           try {
-            // Use window.opener when available (new window)
+            // Try all possible parent window references
             if (window.opener && !window.opener.closed) {
+              // Standard popup window
               window.opener.postMessage({
                 type: 'TWITCH_AUTH',
-                token: params.access_token,
-                state: params.state || ''
+                token: token,
+                state: state || ''
               }, window.location.origin);
             } 
-            // Fallback to parent when in an iframe
             else if (window.parent && window.parent !== window) {
+              // iframe
               window.parent.postMessage({
                 type: 'TWITCH_AUTH',
-                token: params.access_token,
-                state: params.state || ''
-              }, window.location.origin);
-            }
-            // If nothing else, try to use main window
-            else if (window.top) {
-              window.top.postMessage({
-                type: 'TWITCH_AUTH',
-                token: params.access_token,
-                state: params.state || ''
+                token: token,
+                state: state || ''
               }, window.location.origin);
             }
             else {
-              statusElement.innerHTML = '<p class="error">Error: Could not communicate with the main window.</p><p>Please close this window and try again.</p>';
+              // Fallback to top window
+              window.top.postMessage({
+                type: 'TWITCH_AUTH',
+                token: token,
+                state: state || ''
+              }, window.location.origin);
             }
-        } else if (params.error) {
-          statusElement.innerHTML = `<p class="error">Authentication error: ${params.error}</p><p>Please close this window and try again.</p>`;
-        } else {
-          statusElement.innerHTML = '<p class="error">No authentication data found.</p><p>Please close this window and try again.</p>';
+          } catch (err) {
+            console.error('Failed to communicate with parent window:', err);
+            document.getElementById('status').innerHTML = `
+              <p class="error">Communication Error</p>
+              <p>Could not send authentication data to main window. Please close this window and try again.</p>
+              <button class="button" onclick="window.close()">Close Window</button>
+            `;
+          }
         }
-      }
 
-      // Run when the page loads
-      document.addEventListener('DOMContentLoaded', handleAuthentication);
+        // Process auth when page loads
+        document.addEventListener('DOMContentLoaded', processAuth);
+      })();
     </script>
   </div>
 </body>

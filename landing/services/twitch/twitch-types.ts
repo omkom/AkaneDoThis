@@ -1,5 +1,5 @@
 // services/twitch/twitch-types.ts
-// Comprehensive TypeScript interfaces for Twitch API objects
+// Updated with subscription types
 
 /**
  * Authentication data structure
@@ -60,6 +60,36 @@ export interface TwitchAuthData {
     title: string;
     delay: number;
     tags: string[];
+  }
+  
+  /**
+   * Subscription information
+   */
+  export interface TwitchSubscription {
+    broadcaster_id: string;
+    broadcaster_login: string; 
+    broadcaster_name: string;
+    gifter_id: string;
+    gifter_login: string;
+    gifter_name: string;
+    is_gift: boolean;
+    plan_name: string;
+    tier: string; // "1000", "2000", or "3000"
+    user_id: string;
+    user_name: string;
+    user_login: string;
+  }
+  
+  /**
+   * Subscriptions response structure
+   */
+  export interface TwitchSubscriptions {
+    data: TwitchSubscription[];
+    pagination: {
+      cursor?: string;
+    };
+    total: number;
+    points: number; // Subscription points earned by broadcaster
   }
   
   /**
@@ -148,7 +178,7 @@ export interface TwitchAuthData {
    */
   export interface TwitchRequestOptions {
     method?: string;
-    params?: Record<string, string | number | boolean | undefined | null>;
+    params?: Record<string, string | number | boolean | undefined | null | string[]>;
     data?: Record<string, unknown>;
     token?: string | null;
     userToken?: string | null;
