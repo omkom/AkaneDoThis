@@ -12,6 +12,8 @@ import { trackPageView, trackFormSubmit } from './utils/analytics';
 import TwitchApiLogger from './components/Twitch/TwitchApiLogger';
 import { setupEnvironment, getEnv } from './utils/env-config';
 
+import './components/css/twitch-embed.css';
+
 // Import assets
 import React from 'react';
 

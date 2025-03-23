@@ -21,6 +21,8 @@ import {
   getTwitchChannelUrl,
 } from '../../../services/twitch/twitch-client';
 
+//import TwitchEmbed from './TwitchEmbed';
+
 // Default channel name
 const DEFAULT_CHANNEL_NAME = 'akanedothis';
 
@@ -34,6 +36,7 @@ const CACHE_TIMES = {
 
 interface StreamerSpotlightProps {
   channelName?: string;
+  isLive?: boolean;
 }
 
 /**
@@ -41,7 +44,8 @@ interface StreamerSpotlightProps {
  * Displays Twitch streamer information with subscription and follow functionality
  */
 const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
-  channelName = DEFAULT_CHANNEL_NAME
+  channelName = DEFAULT_CHANNEL_NAME,
+  //let isLive = false
 }) => {
   // State
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -50,9 +54,9 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [followLoading, setFollowLoading] = useState<boolean>(false);
   const [channelData, setChannelData] = useState<Partial<TwitchChannelData>>({
-    broadcaster: undefined,
-    stream: undefined,
-    channel: undefined,
+    broadcaster: null,
+    stream: null,
+    channel: null,
     followers: { total: 0, data: [] },
     isLive: false,
     subscriberCount: 0,
@@ -365,7 +369,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
             {stats?.streamTitle || 'Check out our Twitch channel!'}
           </h5>
           {stats?.game && (
-            <div className="text-gray-300 text-xs mt-1">Playing: {stats.game}</div>
+            <div className="text-gray-300 text-xs mt-1">{stats.game}</div>
           )}
           {isLive && stats?.startedAt && (
             <div className="flex items-center text-gray-400 text-xs mt-1">
