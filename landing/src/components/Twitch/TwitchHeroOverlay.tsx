@@ -1,6 +1,9 @@
+// landing/src/components/Twitch/TwitchHeroOverlay.tsx
 import React, { useState, useEffect } from 'react';
 import { FaTwitch, FaHeart, FaStar, FaUsers, FaPlay, FaBell } from 'react-icons/fa';
 import { trackClick } from '../../utils/analytics';
+import { TwitchAuthData, TwitchUserData } from '../../../services/twitch/twitch-types';
+import { formatNumber } from '../../../services/twitch/twitch-client';
 
 // Define TypeScript interfaces
 interface TwitchStats {
@@ -11,30 +14,9 @@ interface TwitchStats {
   streamTitle: string;
 }
 
-interface TwitchUserData {
-  id: string;
-  login: string;
-  display_name: string;
-  profile_image_url: string;
-  view_count: number;
-  created_at: string;
-}
-
-interface TwitchAuthData {
-  token: string;
-  userData: TwitchUserData;
-}
-
-// Declare global types for Twitch API functions
-declare global {
-  interface Window {
-    loginWithTwitch?: (scopes: string[]) => Promise<TwitchAuthData>;
-    validateTwitchToken?: (token: string) => Promise<boolean>;
-    logoutFromTwitch?: (token?: string) => Promise<boolean>;
-    getTwitchAuth?: () => TwitchAuthData | null;
-    TWITCH_CLIENT_ID?: string;
-  }
-}
+// Mock broadcaster ID for AkaneDoThis
+const BROADCASTER_ID = '258e0f7f-cdd0-4ab8-89f2-82d97993f474'; // Replace with actual ID
+const CHANNEL_NAME = 'akanedothis';
 
 const TwitchHeroOverlay: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -50,10 +32,6 @@ const TwitchHeroOverlay: React.FC = () => {
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   
-  // Mock broadcaster ID for AkaneDoThis
-  const BROADCASTER_ID = '258e0f7f-cdd0-4ab8-89f2-82d97993f474'; // Replace with actual ID
-  const CHANNEL_NAME = 'akanedothis';
-
   // Check for existing authentication on component mount
   useEffect(() => {
     const initializeAuth = async () => {
@@ -104,8 +82,7 @@ const TwitchHeroOverlay: React.FC = () => {
   };
 
   // Function to fetch Twitch data when user is authenticated
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const fetchTwitchData = async (token: string, _id: string) => {
+  const fetchTwitchData = async (token: string, userId: string) => {
     try {
       // Fetch stream info
       const streamResponse = await fetch(`https://api.twitch.tv/helix/streams?user_login=${CHANNEL_NAME}`, {
@@ -223,15 +200,6 @@ const TwitchHeroOverlay: React.FC = () => {
   const handleWatchClick = () => {
     window.open(`https://twitch.tv/${CHANNEL_NAME}`, '_blank');
     trackClick('twitch', 'watch');
-  };
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
   };
 
   return (

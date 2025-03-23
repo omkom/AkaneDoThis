@@ -1,20 +1,10 @@
+// landing/src/components/Twitch/TwitchProfileBadge.tsx
+// Updated with proper type imports and cleaned up inline implementations
+
 import React, { useState, useEffect, useRef } from 'react';
 import { FaTwitch, FaSignOutAlt, FaCog } from 'react-icons/fa';
 import { trackClick } from '../../utils/analytics';
-
-interface TwitchUserData {
-  id: string;
-  login: string;
-  display_name: string;
-  profile_image_url: string;
-  view_count: number;
-  created_at: string;
-}
-
-interface TwitchAuthData {
-  token: string;
-  userData: TwitchUserData;
-}
+import { TwitchAuthData, TwitchUserData } from '../../../services/twitch/twitch-types';
 
 /**
  * TwitchProfileBadge Component
@@ -219,5 +209,16 @@ const TwitchProfileBadge: React.FC = () => {
     </div>
   );
 };
+
+// Add window augmentation for TypeScript
+declare global {
+  interface Window {
+    loginWithTwitch?: (scopes: string[]) => Promise<TwitchAuthData>;
+    validateTwitchToken?: (token: string) => Promise<boolean>;
+    logoutFromTwitch?: (token?: string) => Promise<boolean>;
+    getTwitchAuth?: () => TwitchAuthData | null;
+    TWITCH_CLIENT_ID?: string;
+  }
+}
 
 export default TwitchProfileBadge;

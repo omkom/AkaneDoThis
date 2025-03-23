@@ -1,46 +1,20 @@
+// landing/src/components/Twitch/StreamerSpotlight.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaTwitch, FaPlay, FaInfoCircle, FaUsers } from 'react-icons/fa';
+import { 
+  TwitchUserData, 
+  TwitchFollower, 
+  TwitchChannelData 
+} from '../../../services/twitch/twitch-types';
+import { 
+  formatNumber, 
+  getStreamDuration, 
+  getTwitchChannelUrl 
+} from '../../../services/twitch/twitch-client';
+import { getChannelData } from '../../../services/twitch/twitch-api';
 
 // Default channel name if none is provided
 const DEFAULT_CHANNEL_NAME = 'akanedothis';
-
-// Types
-interface TwitchUserData {
-  id: string;
-  login: string;
-  display_name: string;
-  type: string;
-  broadcaster_type: string;
-  description: string;
-  profile_image_url: string;
-  offline_image_url: string;
-  view_count: number;
-  created_at: string;
-}
-
-interface TwitchFollower {
-  user_id: string;
-  user_login: string;
-  user_name: string;
-  followed_at: string;
-}
-
-interface TwitchChannelData {
-  broadcaster: TwitchUserData | null;
-  stream: any | null;
-  channel: any | null;
-  followers: { total: number; data: TwitchFollower[] };
-  isLive: boolean;
-  stats: {
-    followerCount: number;
-    viewerCount: number;
-    streamTitle: string;
-    game: string;
-    startedAt: string | null;
-    thumbnailUrl: string | null;
-    tags: string[];
-  };
-}
 
 /**
  * StreamerSpotlight Component
@@ -67,34 +41,6 @@ const StreamerSpotlight: React.FC<{ channelName?: string }> = ({
       tags: []
     }
   });
-  
-  // Helper function to format numbers (e.g., 1.2K, 3.4M)
-  const formatNumber = (num: number | undefined): string => {
-    if (!num && num !== 0) return '0';
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-  };
-
-  // Helper function to calculate stream duration
-  const getStreamDuration = (startedAt: string | null): string => {
-    if (!startedAt) return '';
-    
-    const startTime = new Date(startedAt);
-    const now = new Date();
-    const diffMs = now.getTime() - startTime.getTime();
-    
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
   
   // Fetch channel data
   const fetchChannelData = useCallback(async () => {
@@ -310,7 +256,7 @@ const StreamerSpotlight: React.FC<{ channelName?: string }> = ({
 
   // Handle click on the watch button
   const handleWatchClick = () => {
-    window.open(`https://twitch.tv/${channelName}`, '_blank');
+    window.open(getTwitchChannelUrl(channelName), '_blank');
   };
 
   // Loading state

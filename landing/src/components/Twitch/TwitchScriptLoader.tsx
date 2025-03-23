@@ -1,6 +1,8 @@
+// landing/src/components/Twitch/TwitchScriptLoader.tsx
 import { useEffect, useState } from 'react';
 import React from 'react';
 import { TWITCH_CONFIG } from '../../../services/twitch/twitch-client';
+import { TwitchAuthData } from '../../../services/twitch/twitch-types';
 
 interface TwitchScriptLoaderProps {
   children: React.ReactNode;
@@ -87,10 +89,10 @@ const TwitchScriptLoader: React.FC<TwitchScriptLoaderProps> = ({ children }) => 
 // Add window augmentation for TypeScript
 declare global {
   interface Window {
-    loginWithTwitch?: (scopes: string[]) => Promise<any>;
+    loginWithTwitch?: (scopes: string[]) => Promise<TwitchAuthData>;
     validateTwitchToken?: (token: string) => Promise<boolean>;
     logoutFromTwitch?: (token?: string) => Promise<boolean>;
-    getTwitchAuth?: () => any;
+    getTwitchAuth?: () => TwitchAuthData | null;
     setTwitchClientId?: (clientId: string) => void;
     TWITCH_CLIENT_ID?: string;
   }

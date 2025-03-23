@@ -1,74 +1,27 @@
+// landing/src/components/Twitch/TwitchIntegration.tsx
 import React, { useState, useEffect } from 'react';
 import { FaTwitch, FaExternalLinkAlt, FaEye, FaHeart, FaRegHeart, FaCalendarAlt } from 'react-icons/fa';
 import TwitchScriptLoader from './TwitchScriptLoader';
-
-// Define TypeScript interfaces for better type safety
-interface TwitchUserData {
-  id: string;
-  login: string;
-  display_name: string;
-  profile_image_url: string;
-  view_count: number;
-  created_at: string;
-}
-
-interface TwitchAuthData {
-  token: string;
-  userData: TwitchUserData;
-}
-
-interface TwitchStream {
-  id: string;
-  user_id: string;
-  user_name: string;
-  game_name: string;
-  title: string;
-  viewer_count: number;
-  started_at: string;
-  thumbnail_url: string;
-  is_mature: boolean;
-}
-
-interface TwitchScheduleSegment {
-  id: string;
-  start_time: string;
-  end_time: string;
-  title: string;
-  category?: {
-    id: string;
-    name: string;
-  };
-  broadcaster_id: string;
-  broadcaster_name: string;
-}
-
-interface TwitchEvent {
-  type: 'live' | 'scheduled';
-  id: string;
-  broadcaster_id: string;
-  broadcaster_name: string;
-  title: string;
-  game_name?: string;
-  thumbnail_url?: string;
-  viewer_count?: number;
-  started_at?: string;
-  category?: string;
-  start_time?: string;
-  end_time?: string;
-  profile_image_url?: string;
-  is_following?: boolean;
-}
-
-// Augment the Window interface for TypeScript
-declare global {
-  interface Window {
-    loginWithTwitch?: (scopes: string[]) => Promise<TwitchAuthData>;
-    validateTwitchToken?: (token: string) => Promise<boolean>;
-    logoutFromTwitch?: (token?: string) => Promise<boolean>;
-    getTwitchAuth?: () => TwitchAuthData | null;
-    TWITCH_CLIENT_ID?: string;
-  }
-}
+import { 
+  TwitchUserData, 
+  TwitchAuthData, 
+  TwitchStream, 
+  TwitchScheduleSegment, 
+  TwitchEvent 
+} from '../../../services/twitch/twitch-types';
+import {
+  getBroadcasterByLogin,
+  checkFollowing,
+  followChannel,
+  unfollowChannel,
+  getStreamInfo,
+  getChannelSchedule
+} from '../../../services/twitch/twitch-api';
+import {
+  formatNumber,
+  formatThumbnailUrl,
+  getTwitchChannelUrl
+} from '../../../services/twitch/twitch-client';
 
 const TwitchIntegration: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -220,20 +173,8 @@ const TwitchIntegration: React.FC = () => {
           // Check follow status for each broadcaster
           for (const broadcasterId of broadcasterIds) {
             try {
-              const followResponse = await fetch(
-                `https://api.twitch.tv/helix/users/follows?from_id=${userId}&to_id=${broadcasterId}`,
-                {
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Client-ID': window.TWITCH_CLIENT_ID || ''
-                  }
-                }
-              );
-              
-              if (followResponse.ok) {
-                const followData = await followResponse.json();
-                followStatus[broadcasterId] = followData.data && followData.data.length > 0;
-              }
+              const isFollowing = await checkFollowing(userId, broadcasterId);
+              followStatus[broadcasterId] = isFollowing;
             } catch (followErr) {
               console.error(`Error checking follow status for ${broadcasterId}:`, followErr);
             }
@@ -261,25 +202,16 @@ const TwitchIntegration: React.FC = () => {
     
     try {
       const userId = authData.userData.id;
-      const method = currentlyFollowing ? 'DELETE' : 'POST';
-      const url = `https://api.twitch.tv/helix/users/follows`;
+      const token = authData.token;
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${authData.token}`,
-          'Client-ID': window.TWITCH_CLIENT_ID || '',
-          'Content-Type': 'application/json'
-        },
-        body: method === 'POST' 
-          ? JSON.stringify({ 
-              from_id: userId, 
-              to_id: broadcasterId 
-            }) 
-          : undefined,
-      });
+      let success = false;
+      if (currentlyFollowing) {
+        success = await unfollowChannel(userId, broadcasterId, token);
+      } else {
+        success = await followChannel(userId, broadcasterId, true, token);
+      }
       
-      if (response.ok) {
+      if (success) {
         // Update local follow status
         setIsFollowing(prev => ({
           ...prev,
@@ -289,8 +221,7 @@ const TwitchIntegration: React.FC = () => {
         // Show success message
         setError(null);
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error updating follow status');
+        throw new Error(`Failed to ${currentlyFollowing ? 'unfollow' : 'follow'} ${broadcasterName}`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : `Failed to ${currentlyFollowing ? 'unfollow' : 'follow'} ${broadcasterName}`);
@@ -310,11 +241,6 @@ const TwitchIntegration: React.FC = () => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Format thumbnail URL to get a reasonable size
-  const formatThumbnailUrl = (url: string) => {
-    return url.replace('{width}', '320').replace('{height}', '180');
   };
 
   // Calculate time until stream starts
@@ -406,7 +332,7 @@ const TwitchIntegration: React.FC = () => {
                             {event.thumbnail_url && (
                               <div className="w-32 h-18 mr-4 overflow-hidden">
                                 <img 
-                                  src={formatThumbnailUrl(event.thumbnail_url)} 
+                                  src={formatThumbnailUrl(event.thumbnail_url, 320, 180)} 
                                   alt={event.title}
                                   className="w-full h-full object-cover"
                                 />
@@ -431,7 +357,7 @@ const TwitchIntegration: React.FC = () => {
                               
                               <div className="mt-2 flex items-center space-x-2">
                                 <a 
-                                  href={`https://twitch.tv/${event.broadcaster_name}`}
+                                  href={getTwitchChannelUrl(event.broadcaster_name)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-sm px-3 py-1 inline-flex items-center border border-neon-pink text-white hover:bg-neon-pink/20 transition rounded"
@@ -509,7 +435,7 @@ const TwitchIntegration: React.FC = () => {
                               
                               <div className="mt-2 flex items-center space-x-2">
                                 <a 
-                                  href={`https://twitch.tv/${event.broadcaster_name}`}
+                                  href={getTwitchChannelUrl(event.broadcaster_name)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-sm px-3 py-1 inline-flex items-center border border-electric-blue text-white hover:bg-electric-blue/20 transition rounded"

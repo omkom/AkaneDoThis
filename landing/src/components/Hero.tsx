@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
-//import TwitchHeroOverlay from './Twitch/TwitchHeroOverlay';
+import TwitchHeroOverlay from './Twitch/TwitchHeroOverlay';
 import StreamerSpotlight from './Twitch/StreamerSpotlight';
 import './css/hero.css';
 
@@ -66,10 +66,10 @@ export default function Hero() {
         
         {/* Replaced the old CTA button with the new StreamerSpotlight component */}
         <StreamerSpotlight />
+
+        {/* Twitch Hero Overlay - Added Component */}
+        <TwitchHeroOverlay />
       </div>
-      
-      {/* Twitch Hero Overlay - Added Component */}
-      {/* <TwitchHeroOverlay /> */}
       
       {/* Animated background elements */}
       <div className="absolute inset-0 pointer-events-none">
