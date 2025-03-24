@@ -1,10 +1,10 @@
 // landing/src/utils/env-config.ts
-// Enhanced environment variables management with improved client ID handling
+// Enhanced environment variables management with robust client ID handling
 
 // Define environment variable types
 interface EnvVars {
   TWITCH_CLIENT_ID: string;
-  VITE_TWITCH_CLIENT_ID?: string; // Add support for VITE_ prefixed version
+  VITE_TWITCH_CLIENT_ID?: string;
   TWITCH_CLIENT_SECRET?: string;
   PUBLIC_API_URL?: string;
   NODE_ENV?: string;
@@ -29,60 +29,112 @@ const DEV_DEFAULTS: Partial<EnvVars> = {
 };
 
 /**
+ * Discover Twitch Client ID from all possible sources
+ * with detailed logging in development mode
+ */
+function discoverTwitchClientId(): string | undefined {
+  const sources: Array<{ name: string; value: string | undefined }> = [
+    // Direct window property (highest priority)
+    { name: 'window.TWITCH_CLIENT_ID', value: window.TWITCH_CLIENT_ID },
+    
+    // ENV object values
+    { name: 'window.ENV.TWITCH_CLIENT_ID', value: window.ENV?.TWITCH_CLIENT_ID },
+    { name: 'window.ENV.VITE_TWITCH_CLIENT_ID', value: window.ENV?.VITE_TWITCH_CLIENT_ID },
+    
+    // Process environment (will be replaced during build)
+    { name: 'process.env.TWITCH_CLIENT_ID', value: process.env.TWITCH_CLIENT_ID },
+    { name: 'process.env.VITE_TWITCH_CLIENT_ID', value: process.env.VITE_TWITCH_CLIENT_ID },
+
+    // Import meta (available during build with Vite)
+    // @ts-ignore - Vite specific
+    { name: 'import.meta.env.TWITCH_CLIENT_ID', value: import.meta?.env?.TWITCH_CLIENT_ID },
+    // @ts-ignore - Vite specific
+    { name: 'import.meta.env.VITE_TWITCH_CLIENT_ID', value: import.meta?.env?.VITE_TWITCH_CLIENT_ID },
+  ];
+
+  // Find first valid source
+  for (const source of sources) {
+    if (source.value) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[ENV] Using Twitch Client ID from ${source.name}: ${source.value.substring(0, 5)}...`);
+      }
+      return source.value;
+    }
+  }
+
+  // Search for any key in window.ENV that might contain relevant info
+  if (window.ENV) {
+    for (const [key, value] of Object.entries(window.ENV)) {
+      if ((key.includes('TWITCH') || key.includes('twitch')) && 
+          (key.includes('CLIENT_ID') || key.includes('client_id')) && 
+          value) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[ENV] Found alternative Twitch Client ID in ${key}: ${value.substring(0, 5)}...`);
+        }
+        return value;
+      }
+    }
+  }
+
+  // Try to find it in meta tags
+  const metaTags = document.querySelectorAll('meta[name^="env-"]');
+  for (const tag of Array.from(metaTags)) {
+    const name = tag.getAttribute('name')?.replace('env-', '');
+    const value = tag.getAttribute('content');
+    
+    if ((name?.includes('TWITCH') || name?.includes('twitch')) && 
+        (name?.includes('CLIENT_ID') || name?.includes('client_id')) && 
+        value) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[ENV] Found Twitch Client ID in meta tag ${name}: ${value.substring(0, 5)}...`);
+      }
+      return value;
+    }
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('[ENV] Could not find Twitch Client ID from any source');
+  }
+  
+  return undefined;
+}
+
+/**
  * Initialize environment variables from multiple sources
- * Priority: 1. Manual config, 2. Meta tags, 3. import.meta.env, 4. Defaults
+ * Priority: 1. Manual config, 2. Window variables, 3. Meta tags, 4. Env vars, 5. Defaults
  */
 export function setupEnvironment(manualConfig?: Partial<EnvVars>): EnvVars {
-  // Initialize ENV object
+  // Initialize ENV object if it doesn't exist
   window.ENV = window.ENV || {} as EnvVars;
   
-  // 1. Extract environment variables from meta tags
+  // 1. Look for Twitch Client ID from all possible sources
+  const discoveredClientId = discoverTwitchClientId();
+  if (discoveredClientId) {
+    window.TWITCH_CLIENT_ID = discoveredClientId;
+    window.ENV.TWITCH_CLIENT_ID = discoveredClientId;
+    window.ENV.VITE_TWITCH_CLIENT_ID = discoveredClientId;
+  }
+  
+  // 2. Extract environment variables from meta tags
   document.querySelectorAll('meta[name^="env-"]').forEach(metaTag => {
     const name = metaTag.getAttribute('name')?.replace('env-', '');
     const value = metaTag.getAttribute('content');
     if (name && value) {
       window.ENV[name] = value;
-      
-      // Handle specific variables that need special processing
-      if (name === 'VITE_TWITCH_CLIENT_ID' || name === 'TWITCH_CLIENT_ID') {
-        window.TWITCH_CLIENT_ID = value;
-        window.ENV.TWITCH_CLIENT_ID = value;
-      }
     }
   });
   
-  // 2. Add variables from Vite's import.meta.env if available
-  try {
-    if (import.meta.env) {
-      Object.entries(import.meta.env).forEach(([key, value]) => {
-        if (typeof value === 'string') {
-          // Store all environment variables
-          window.ENV[key] = value;
-          
-          // Handle VITE_ prefix for Twitch client ID
-          if (key === 'VITE_TWITCH_CLIENT_ID') {
-            window.TWITCH_CLIENT_ID = value;
-            window.ENV.TWITCH_CLIENT_ID = value;
-          } else if (key === 'TWITCH_CLIENT_ID') {
-            window.TWITCH_CLIENT_ID = value;
-          }
-        }
-      });
-    }
-  } catch (e) {
-    console.warn('Could not access import.meta.env');
-  }
-
   // 3. Apply any manually provided configuration (highest priority)
   if (manualConfig) {
     Object.entries(manualConfig).forEach(([key, value]) => {
       if (value !== undefined) {
         window.ENV[key] = value;
         
-        // Handle specific variables that need special processing
+        // Handle Twitch client ID specifically
         if (key === 'VITE_TWITCH_CLIENT_ID' || key === 'TWITCH_CLIENT_ID') {
           window.TWITCH_CLIENT_ID = value;
           window.ENV.TWITCH_CLIENT_ID = value;
+          window.ENV.VITE_TWITCH_CLIENT_ID = value;
         }
       }
     });
@@ -96,29 +148,34 @@ export function setupEnvironment(manualConfig?: Partial<EnvVars>): EnvVars {
       // Handle Twitch client ID specifically
       if (key === 'TWITCH_CLIENT_ID' && !window.TWITCH_CLIENT_ID) {
         window.TWITCH_CLIENT_ID = value;
+        window.ENV.TWITCH_CLIENT_ID = value;
+        window.ENV.VITE_TWITCH_CLIENT_ID = value;
       }
       
       if (process.env.NODE_ENV !== 'production') {
-        console.warn(`Using fallback value for ${key}: ${value}`);
+        console.warn(`[ENV] Using fallback value for ${key}: ${value}`);
       }
     }
   });
   
-  // Double check that TWITCH_CLIENT_ID is set correctly
-  if (window.ENV.VITE_TWITCH_CLIENT_ID && !window.ENV.TWITCH_CLIENT_ID) {
-    window.ENV.TWITCH_CLIENT_ID = window.ENV.VITE_TWITCH_CLIENT_ID;
-    window.TWITCH_CLIENT_ID = window.ENV.VITE_TWITCH_CLIENT_ID;
-  }
-  
-  // Ensure global TWITCH_CLIENT_ID is set if available in ENV
-  if (window.ENV.TWITCH_CLIENT_ID && !window.TWITCH_CLIENT_ID) {
+  // Ensure TWITCH_CLIENT_ID is properly set in all locations
+  if (window.ENV.TWITCH_CLIENT_ID) {
     window.TWITCH_CLIENT_ID = window.ENV.TWITCH_CLIENT_ID;
+    window.ENV.VITE_TWITCH_CLIENT_ID = window.ENV.TWITCH_CLIENT_ID;
+  } else if (window.ENV.VITE_TWITCH_CLIENT_ID) {
+    window.TWITCH_CLIENT_ID = window.ENV.VITE_TWITCH_CLIENT_ID;
+    window.ENV.TWITCH_CLIENT_ID = window.ENV.VITE_TWITCH_CLIENT_ID;
+  } else if (window.TWITCH_CLIENT_ID) {
+    window.ENV.TWITCH_CLIENT_ID = window.TWITCH_CLIENT_ID;
+    window.ENV.VITE_TWITCH_CLIENT_ID = window.TWITCH_CLIENT_ID;
   }
   
   // Debug log in development
   if (process.env.NODE_ENV !== 'production') {
-    console.log('[ENV] Loaded configuration:', { ...window.ENV });
-    console.log('[ENV] TWITCH_CLIENT_ID:', window.TWITCH_CLIENT_ID);
+    console.log('[ENV] Final environment configuration:');
+    console.log('- window.TWITCH_CLIENT_ID:', window.TWITCH_CLIENT_ID);
+    console.log('- window.ENV.TWITCH_CLIENT_ID:', window.ENV.TWITCH_CLIENT_ID);
+    console.log('- window.ENV.VITE_TWITCH_CLIENT_ID:', window.ENV.VITE_TWITCH_CLIENT_ID);
   }
 
   return window.ENV;
@@ -136,8 +193,12 @@ export function getEnv<K extends keyof EnvVars>(key: K, defaultValue = ''): stri
   
   // Handle special case for Twitch client ID
   if (key === 'TWITCH_CLIENT_ID' as K) {
+    // Check all possible locations in order of priority
     if (window.TWITCH_CLIENT_ID) {
       return window.TWITCH_CLIENT_ID as string;
+    }
+    if (window.ENV.TWITCH_CLIENT_ID) {
+      return window.ENV.TWITCH_CLIENT_ID;
     }
     if (window.ENV.VITE_TWITCH_CLIENT_ID) {
       return window.ENV.VITE_TWITCH_CLIENT_ID;

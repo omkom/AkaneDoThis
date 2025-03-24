@@ -1,4 +1,4 @@
-# Updated docker-compose.yml for landing directory
+# Updated docker-compose.yml for landing directory with improved environment handling
 services:
   # Development environment with hot reloading
   dev:
@@ -6,6 +6,9 @@ services:
       context: .
       dockerfile: Dockerfile
       target: development
+      args:
+        - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+        - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
     volumes:
       # Mount the source code for development
       - .:/app:delegated
@@ -16,7 +19,7 @@ services:
       - "${API_PORT:-3000}:3000"
     environment:
       - NODE_ENV=development
-      # Properly pass both TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_ID
+      # Always pass both environment variables to ensure consistency
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
@@ -30,6 +33,7 @@ services:
       sh -c "
         echo 'Starting development servers...' &&
         echo 'TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}' &&
+        echo 'VITE_TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}' &&
         npm run dev -- --host 0.0.0.0 & 
         node server/index.js & 
         wait
@@ -59,7 +63,7 @@ services:
       - ./dist:/app/dist
     environment:
       - NODE_ENV=production
-      # Properly pass both TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_ID
+      # Pass both environment variables to ensure both are available
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       # Optimize build performance
@@ -69,7 +73,15 @@ services:
     command: >
       sh -c "
         echo 'Building with TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}' &&
-        npm run build
+        echo 'VITE_TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}' &&
+        npm run build &&
+        echo 'Creating backup env.js to ensure it exists' &&
+        mkdir -p /app/dist &&
+        echo 'window.ENV = window.ENV || {};
+        window.ENV.TWITCH_CLIENT_ID = \"${TWITCH_CLIENT_ID}\";
+        window.ENV.VITE_TWITCH_CLIENT_ID = \"${TWITCH_CLIENT_ID}\";
+        window.TWITCH_CLIENT_ID = \"${TWITCH_CLIENT_ID}\";
+        console.log(\"[ENV] Loaded from Docker build\");' > /app/dist/env.js
       "
     deploy:
       resources:
@@ -90,7 +102,7 @@ services:
       - "${SERVE_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      # Properly pass both TWITCH_CLIENT_ID and VITE_TWITCH_CLIENT_ID
+      # Pass environment variables to runtime container
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - VITE_TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
       - PORT=3000
