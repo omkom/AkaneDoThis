@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FaTwitch, FaPlay, FaUsers, FaStar, FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaTwitch, FaPlay, FaUsers, FaStar, FaHeart, FaRegHeart, FaExpand, FaCompress, FaVolumeMute, FaVolumeUp } from 'react-icons/fa';
 import { trackClick } from '../../utils/analytics';
+import TwitchEmbed from './TwitchEmbed';
 
 // Import Twitch services
 import {
@@ -21,8 +22,6 @@ import {
   getTwitchChannelUrl,
 } from '../../../services/twitch/twitch-client';
 
-//import TwitchEmbed from './TwitchEmbed';
-
 // Default channel name
 const DEFAULT_CHANNEL_NAME = 'akanedothis';
 
@@ -42,10 +41,11 @@ interface StreamerSpotlightProps {
 /**
  * StreamerSpotlight Component
  * Displays Twitch streamer information with subscription and follow functionality
+ * Includes embedded Twitch stream when live
  */
 const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
   channelName = DEFAULT_CHANNEL_NAME,
-  //let isLive = false
+  isLive = false
 }) => {
   // State
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -53,6 +53,8 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
   const [authData, setAuthData] = useState<TwitchAuthData | null>(null);
   const [isFollowing, setIsFollowing] = useState<boolean>(false);
   const [followLoading, setFollowLoading] = useState<boolean>(false);
+  const [embedExpanded, setEmbedExpanded] = useState<boolean>(false);
+  const [embedMuted, setEmbedMuted] = useState<boolean>(true);
   const [channelData, setChannelData] = useState<Partial<TwitchChannelData>>({
     broadcaster: null,
     stream: null,
@@ -100,6 +102,14 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
     checkAuth();
   }, []);
 
+  // Update isLive in channelData when the prop changes
+  useEffect(() => {
+    setChannelData(prev => ({
+      ...prev,
+      isLive
+    }));
+  }, [isLive]);
+
   // Function to throttle API calls
   const throttledFetch = useCallback(async (fetchFn: () => Promise<void>) => {
     const now = Date.now();
@@ -140,8 +150,14 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
       // Fetch channel data with user token if available
       const data = await getChannelData(channelName, userToken);
 
-      setChannelData(data);
-      channelDataRef.current = data;
+      // Override isLive with the prop value if provided
+      const updatedData = {
+        ...data,
+        isLive: isLive || data.isLive
+      };
+
+      setChannelData(updatedData);
+      channelDataRef.current = updatedData;
 
       // Check follow status if authenticated
       if (authDataRef.current?.token && data.broadcaster?.id) {
@@ -167,7 +183,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           stream: null,
           channel: null,
           followers: { total: 0, data: [] },
-          isLive: false,
+          isLive: isLive, // Use the prop value even in fallback
           subscriberCount: 534, // Fallback count
           stats: {
             followerCount: 8754, // Fallback data
@@ -189,7 +205,7 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
         isInitialLoadRef.current = false;
       }
     }
-  }, [channelName, checkFollowStatus, throttledFetch]);
+  }, [channelName, checkFollowStatus, throttledFetch, isLive]);
 
   // Fetch data on mount and when auth changes
   useEffect(() => {
@@ -287,16 +303,28 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
     trackClick('twitch', 'watch');
   };
 
+  // Toggle embed size
+  const toggleEmbedSize = () => {
+    setEmbedExpanded(!embedExpanded);
+    trackClick('twitch', embedExpanded ? 'embed-collapse' : 'embed-expand');
+  };
+  
+  // Toggle mute state
+  const toggleMute = () => {
+    setEmbedMuted(!embedMuted);
+    trackClick('twitch', embedMuted ? 'embed-unmute' : 'embed-mute');
+  };
+
   // Extract values from channel data
-  const { isLive, stats, subscriberCount } = channelData;
+  const { stats, subscriberCount } = channelData;
 
   // Create a fixed-height container for content
-  const minHeight = "200px";
+  const minHeight = channelData.isLive ? "500px" : "200px";
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="streamer-spotlight-container w-full max-w-md mx-auto mt-6" style={{ minHeight }}>
+      <div className="streamer-spotlight-container w-full max-w-4xl mx-auto mt-6" style={{ minHeight }}>
         <div className="neo-card neo-card-purple p-4 md:p-6 rounded-lg backdrop-blur-sm animate-pulse h-full">
           <div className="h-6 w-24 bg-neon-pink/30 rounded mb-2"></div>
           <div className="h-4 w-32 bg-electric-blue/30 rounded mb-4"></div>
@@ -307,11 +335,11 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
   }
 
   return (
-    <div className="streamer-spotlight-container w-full max-w-md mx-auto mt-6" style={{ minHeight }}>
-      <div className={`neo-card ${isLive ? 'neo-card-pink' : 'neo-card-purple'} p-4 md:p-6 rounded-lg backdrop-blur-sm relative overflow-hidden`}>
+    <div className="streamer-spotlight-container max-w-4xl mx-auto mt-6" style={{ minHeight }}>
+      <div className={`neo-card ${channelData.isLive ? 'neo-card-pink' : 'neo-card-purple'} p-4 md:p-6 rounded-lg backdrop-blur-sm relative overflow-hidden`}>
         {/* Status badge */}
         <div className="absolute -top-1 -right-1 px-3 py-1 text-sm font-cyber rounded-bl-lg rounded-tr-lg h-7 flex items-center">
-          {isLive ? (
+          {channelData.isLive ? (
             <div className="bg-gradient-to-r from-red-600 to-neon-pink text-white flex items-center">
               <span className="relative flex h-3 w-3 mr-1">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -328,8 +356,8 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
 
         {/* Twitch logo and streamer name */}
         <div className="flex items-center mb-3">
-          <FaTwitch className={`${isLive ? 'text-neon-pink' : 'text-bright-purple'} mr-2`} size={20} />
-          <h4 className={`font-cyber ${isLive ? 'text-neon-pink' : 'text-bright-purple'}`}>{channelName}</h4>
+          <FaTwitch className={`${channelData.isLive ? 'text-neon-pink' : 'text-bright-purple'} mr-2`} size={20} />
+          <h4 className={`font-cyber ${channelData.isLive ? 'text-neon-pink' : 'text-bright-purple'}`}>{channelName}</h4>
         </div>
 
         {/* Stats row */}
@@ -349,16 +377,22 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
             <div className="text-xs text-gray-400">Subscribers</div>
           </div>
           <div className="text-center">
-            {isLive ? (
+            {channelData.isLive ? (
               <>
                 <div className="flex items-center justify-center text-vivid-lime mb-1">
                   <FaPlay className="mr-1" />
                   <span className="font-cyber">{formatNumber(stats?.viewerCount)}</span>
                 </div>
-                <div className="text-xs text-gray-400">Status</div>
+                <div className="text-xs text-gray-400">Viewers</div>
               </>
             ) : (
-              <div className="text-xs text-gray-400">Offline</div>
+              <>
+                <div className="flex items-center justify-center text-gray-400 mb-1">
+                  <FaPlay className="mr-1" />
+                  <span className="font-cyber">Offline</span>
+                </div>
+                <div className="text-xs text-gray-400">Status</div>
+              </>
             )}
           </div>
         </div>
@@ -371,7 +405,46 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           {stats?.game && (
             <div className="text-gray-300 text-xs mt-1">{stats.game}</div>
           )}
-          {isLive && stats?.startedAt && (
+
+           {/* Twitch embed when live */}
+          {channelData.isLive && (
+            <div className={`relative ${embedExpanded ? 'h-[500px]' : 'h-[300px]'} mb-4 transition-all duration-300`}>
+              <TwitchEmbed
+                channel={channelName}
+                width="100%"
+                height="100%"
+                autoplay={true}
+                muted={embedMuted}
+                theme="dark"
+                onReady={() => console.log('Embed ready')}
+                onPlay={() => {
+                  console.log('Stream playing');
+                  trackClick('twitch', 'embed-play');
+                }}
+                className="rounded-lg overflow-hidden"
+              />
+              
+              {/* Embed controls */}
+              <div className="stream-controls absolute bottom-4 right-4 flex space-x-2 z-10">
+                <button 
+                  onClick={toggleMute}
+                  className="stream-control-btn"
+                  aria-label={embedMuted ? "Unmute stream" : "Mute stream"}
+                >
+                  {embedMuted ? <FaVolumeMute /> : <FaVolumeUp />}
+                </button>
+                <button 
+                  onClick={toggleEmbedSize}
+                  className="stream-control-btn"
+                  aria-label={embedExpanded ? "Shrink stream" : "Expand stream"}
+                >
+                  {embedExpanded ? <FaCompress /> : <FaExpand />}
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {channelData.isLive && stats?.startedAt && (
             <div className="flex items-center text-gray-400 text-xs mt-1">
               <FaPlay className="mr-1" size={10} />
               <span>Live for {getStreamDuration(stats.startedAt)}</span>
@@ -407,13 +480,13 @@ const StreamerSpotlight: React.FC<StreamerSpotlightProps> = ({
           <button
             onClick={handleWatchClick}
             className={`flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm font-cyber ${
-              isLive
+              channelData.isLive
                 ? 'bg-neon-pink text-black hover:bg-neon-pink/90 animate-[pulse_2s_infinite]'
                 : 'bg-electric-blue/20 border border-electric-blue text-white hover:bg-electric-blue/30'
             } rounded transition`}
           >
             <FaPlay />
-            {isLive ? 'Watch Now' : 'View Channel'}
+            {channelData.isLive ? 'Watch Now' : 'View Channel'}
           </button>
         </div>
 

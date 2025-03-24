@@ -15,8 +15,6 @@ export default function Hero() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [isLive, setIsLive] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [embedExpanded, setEmbedExpanded] = useState(false);
-  const [embedMuted, setEmbedMuted] = useState(true);
   const streamCheckerRef = useRef<NodeJS.Timeout | null>(null);
   const heroRef = useRef<HTMLElement>(null);
   
@@ -85,88 +83,44 @@ export default function Hero() {
   // Calculate glitch intensity based on scroll
   const glitchIntensity = Math.min(scrollPosition / 500, 1);
   
-  // Handle Twitch embed events
-  const handleEmbedReady = () => {
-    console.log('Twitch embed ready');
-  };
-  
-  const handleEmbedPlay = () => {
-    console.log('Twitch embed playing');
-    // Track play event
-    trackClick('twitch', 'embed-play');
-  };
-  
-  const handleEmbedOffline = () => {
-    console.log('Stream is offline');
-    setIsLive(false);
-  };
-  
-  // Toggle embed size
-  const toggleEmbedSize = () => {
-    setEmbedExpanded(!embedExpanded);
-    trackClick('twitch', embedExpanded ? 'embed-collapse' : 'embed-expand');
-  };
-  
-  // Toggle mute state
-  const toggleMute = () => {
-    setEmbedMuted(!embedMuted);
-    trackClick('twitch', embedMuted ? 'embed-unmute' : 'embed-mute');
-  };
-  
   return (
     <section 
       id="home" 
       ref={heroRef}
-      className="hero min-h-screen flex items-center justify-center bg-gradient-to-b from-black to-jet-black relative overflow-hidden"
+      className="hero min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-black to-jet-black relative overflow-hidden pt-16"
     >
       {isLoading ? (
         <div className="absolute top-4 right-4 z-10 text-white bg-black/50 rounded px-3 py-2 flex items-center">
           <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-neon-pink mr-2"></div>
           <span className="text-sm font-cyber">Checking stream...</span>
         </div>
-      ) : isLive && (
-        <div 
-          className={`absolute z-10 top-0 left-0 right-0 transition-all duration-500 ease-in-out ${
-            embedExpanded ? 'h-screen' : 'h-3/5 lg:h-2/3'
-          }`}
-        >
-          <div className="relative w-full h-full">
-            {/* "Live Now" badge */}
-            <div className="absolute top-4 left-4 flex items-center bg-red-600/90 text-white px-3 py-1 rounded-full text-sm font-cyber">
-              <span className="relative flex h-3 w-3 mr-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-              </span>
-              LIVE NOW
-            </div>
-          </div>
-        </div>
-      )}
+      ) : null}
       
-      <div className={`hero-content text-center z-10 px-4 transition-all duration-500 ${
-        isLive && !embedExpanded ? 'mt-64 lg:mt-96' : isLive && embedExpanded ? 'opacity-0 pointer-events-none' : ''
-      }`}>
-        <div className="mb-8 mx-auto w-40 h-40 rounded-full overflow-hidden border-4 border-neon-pink glow-effect">
-          <img 
-            src="https://static-cdn.jtvnw.net/jtv_user_pictures/258e0f7f-cdd0-4ab8-89f2-82d97993f474-profile_image-300x300.png"
-            alt="AkaneDoThis" 
-            className="w-full h-full object-cover"
-          />
+      <div className="hero-content flex flex-col justify-center items-center z-10 px-4 w-full max-w-3xl mx-auto">
+        {/* Profile section - keeping original size */}
+        <div className="mb-6 text-center">
+          <div className="mb-6 mx-auto w-32 h-32 rounded-full overflow-hidden border-4 border-neon-pink glow-effect">
+            <img 
+              src="https://static-cdn.jtvnw.net/jtv_user_pictures/258e0f7f-cdd0-4ab8-89f2-82d97993f474-profile_image-300x300.png"
+              alt="AkaneDoThis" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <h1 
+            className="font-cyber text-5xl md:text-7xl font-bold mb-4 tracking-wider glitching-text"
+            data-text="AkaneDoThis"
+            style={{
+              position: "relative",
+              fontFamily: "'Orbitron', sans-serif",
+              color: "#f6d8d5"
+            }}
+          >
+            AkaneDoThis
+          </h1>
+          <p className="font-body text-xl md:text-2xl mb-6 text-electric-blue tracking-wide">Diffuser le futur, un pixel à la fois</p>
         </div>
-        <h1 
-          className="font-cyber text-5xl md:text-7xl font-bold mb-4 tracking-wider glitching-text"
-          data-text="AkaneDoThis"
-          style={{
-            position: "relative",
-            fontFamily: "'Orbitron', sans-serif",
-            color: "#f6d8d5"
-          }}
-        >
-          AkaneDoThis
-        </h1>
-        <p className="font-body text-xl md:text-2xl mb-8 text-electric-blue tracking-wide">Diffuser le futur, un pixel à la fois</p>
         
-        {/* StreamerSpotlight with integrated follow button and subscribers */}
+        {/* StreamerSpotlight with integrated follow button and stream display */}
         <StreamerSpotlight isLive={isLive} />
       </div>
       

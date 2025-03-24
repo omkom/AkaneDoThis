@@ -56,7 +56,7 @@ export default function Schedule() {
         // Filter for upcoming segments (next 7 days)
         const now = new Date();
         const nextWeek = new Date();
-        nextWeek.setDate(nextWeek.getDate() + 7);
+        nextWeek.setDate(nextWeek.getDate() + 6);
 
         const upcomingSegments = scheduleData.data.segments.filter(segment => {
           const segmentStart = new Date(segment.start_time);
